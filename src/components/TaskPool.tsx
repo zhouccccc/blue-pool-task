@@ -1,7 +1,9 @@
 import * as React from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import db, { Task, TaskType } from "../db";
-import { Layout } from "./Layout";
+import { useSearchParams } from "react-router";
+// Removed Layout as handled at root
+
 import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
 import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter } from "lucide-react";
@@ -27,9 +29,24 @@ export function TaskPool() {
   const [editingTask, setEditingTask] = React.useState<Task | undefined>(undefined);
   const [creationType, setCreationType] = React.useState<TaskType>("dev");
 
-  // Filtering States
-  const [filterModule, setFilterModule] = React.useState<number | 'all'>('all');
-  const [filterType, setFilterType] = React.useState<TaskType | 'all'>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Filtering States from URL
+  const rawModule = searchParams.get('module');
+  const filterModule = rawModule && rawModule !== 'all' ? Number(rawModule) : 'all';
+  const filterType = (searchParams.get('type') as TaskType | 'all') || 'all';
+
+  const updateFilter = (key: 'module' | 'type', value: string | number) => {
+    setSearchParams(prev => {
+      if (value === 'all') {
+        prev.delete(key);
+      } else {
+        prev.set(key, String(value));
+      }
+      return prev;
+    }, { replace: true });
+  };
+
 
   const filteredTasks = React.useMemo(() => {
     return tasks.filter(t => {
@@ -80,7 +97,8 @@ export function TaskPool() {
   };
 
   return (
-    <Layout backTo="/">
+    <>
+
       <div className="flex flex-col h-full space-y-6 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         <header className="flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
@@ -105,7 +123,7 @@ export function TaskPool() {
               <FolderKanban size={14} className="text-slate-400 shrink-0" />
               <Select 
                 value={filterModule} 
-                onChange={setFilterModule}
+                onChange={(val) => updateFilter('module', val)}
                 variant="borderless"
                 className="w-28 font-medium text-sm"
                 popupClassName="min-w-[160px]"
@@ -118,7 +136,7 @@ export function TaskPool() {
               <ListFilter size={14} className="text-slate-400 shrink-0" />
               <Select 
                 value={filterType} 
-                onChange={setFilterType}
+                onChange={(val) => updateFilter('type', val)}
                 variant="borderless"
                 className="w-28 font-medium text-sm"
                 options={[
@@ -305,6 +323,7 @@ export function TaskPool() {
         task={editingTask} 
         isPool={true}
       />
-    </Layout>
+    </>
+
   );
 }

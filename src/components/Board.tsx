@@ -1,9 +1,9 @@
 import * as React from "react";
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import db, { TaskType, Module, Task } from "../db";
 import { STATUS_MAP, TYPE_INFO } from "../constants";
-import { Layout } from "./Layout";
+// Removed Layout as it's now a parent component
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye } from "lucide-react";
 import { Button } from "./ui/button";
@@ -14,16 +14,19 @@ import dayjs from "dayjs";
 import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange } from "../lib/utils";
 
 export function Board() {
-  const { type } = useParams<{ type: TaskType }>();
-  const [activeWeek, setActiveWeek] = React.useState(getCurrentWeekStr());
+  const { type, week } = useParams<{ type: TaskType; week?: string }>();
+  const navigate = useNavigate();
+  const activeWeek = week || getCurrentWeekStr();
+
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | undefined>(undefined);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
   const [viewingTask, setViewingTask] = React.useState<Task | null>(null);
 
   if (!type || !STATUS_MAP[type]) {
-    return <Layout><div className="flex items-center justify-center h-[50vh]">未知或者不支持的任务类型</div></Layout>;
+    return <div className="flex items-center justify-center h-[50vh]">未知或者不支持的任务类型</div>;
   }
+
 
   const columns = STATUS_MAP[type];
   const info = TYPE_INFO[type];
@@ -109,7 +112,8 @@ export function Board() {
   };
 
   return (
-    <Layout backTo="/" type={type} activeWeek={activeWeek}>
+    <>
+
       <div className="flex flex-col h-full space-y-6 overflow-hidden">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300 shrink-0">
           <div>
@@ -120,7 +124,7 @@ export function Board() {
               </div>
               <Select 
                 value={activeWeek}
-                onChange={setActiveWeek}
+                onChange={(w) => navigate(`/board/${type}/${w}`)}
                 options={getWeekOptions()}
                 className="w-[260px] h-10"
                 popupMatchSelectWidth={false}
@@ -406,6 +410,7 @@ export function Board() {
           }}
         />
       </div>
-    </Layout>
+    </>
+
   );
 }

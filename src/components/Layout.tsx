@@ -1,12 +1,17 @@
-import { Link, useLocation } from "react-router";
-import { LayoutDashboard, CheckSquare, Layers, Bug, Settings, ArrowLeft } from "lucide-react";
+import * as React from "react";
+import { Link, useLocation, Outlet, useParams } from "react-router";
+import { CheckSquare, Layers, Bug, ArrowLeft } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "../db";
 import { getCurrentWeekStr } from "../lib/utils";
 
-export function Layout({ children, backTo, type, activeWeek }: { children: React.ReactNode, backTo?: string, type?: 'dev'|'dep'|'bug', activeWeek?: string }) {
+export function Layout() {
+  const location = useLocation();
+  const { type, week } = useParams<{ type?: 'dev'|'dep'|'bug', week?: string }>();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
-  const targetWeek = activeWeek || getCurrentWeekStr();
+  
+  const backTo = location.pathname !== '/' ? '/' : undefined;
+  const targetWeek = week || getCurrentWeekStr();
   
   const counts = {
     dev: tasks.filter(t => t.type === 'dev' && t.week === targetWeek && t.status !== 'completed' && t.status !== 'deployed').length,
@@ -48,7 +53,7 @@ export function Layout({ children, backTo, type, activeWeek }: { children: React
         </nav>
       </header>
       <main className="flex-1 p-6 gap-6 overflow-hidden max-w-[1600px] mx-auto w-full flex flex-col z-0 relative">
-        {children}
+        <Outlet />
       </main>
       <footer className="h-8 bg-slate-800 text-slate-400 px-6 flex items-center justify-between text-[10px] shrink-0 z-10">
         <div className="flex items-center gap-6">
@@ -68,7 +73,13 @@ export function Layout({ children, backTo, type, activeWeek }: { children: React
 
 function NavLink({ to, icon, label, typeTheme, count }: { to: string, icon: React.ReactNode, label: string, typeTheme: 'dev'|'dep'|'bug', count: number }) {
   const location = useLocation();
+  const { week } = useParams<{ week?: string }>();
+  
   const isActive = location.pathname.startsWith(to);
+  
+  // Preserve current week in navigation to boards
+  const targetUrl = week ? `${to}/${week}` : to;
+
   const themeClasses = {
     dev: 'text-blue-700 bg-blue-100/50 border border-blue-200/50',
     dep: 'text-indigo-700 bg-indigo-100/50 border border-indigo-200/50',
@@ -83,7 +94,7 @@ function NavLink({ to, icon, label, typeTheme, count }: { to: string, icon: Reac
   };
 
   return (
-    <Link to={to} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${isActive ? themeClasses[typeTheme] : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'}`}>
+    <Link to={targetUrl} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${isActive ? themeClasses[typeTheme] : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'}`}>
       {icon}
       <span className="hidden sm:inline">{label}</span>
       {count > 0 && (
@@ -94,3 +105,4 @@ function NavLink({ to, icon, label, typeTheme, count }: { to: string, icon: Reac
     </Link>
   )
 }
+

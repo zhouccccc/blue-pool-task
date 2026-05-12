@@ -2,7 +2,7 @@ import * as React from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "../db";
 import { Link } from "react-router";
-import { Layout } from "./Layout";
+// Removed Layout as it is now handled at the root layout route
 import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users, Download, Upload, ChevronDown, FileJson } from "lucide-react";
 import { Dropdown, message, type MenuProps } from "antd";
 import { TYPE_INFO } from "../constants";
@@ -121,7 +121,8 @@ export function Home() {
   ];
 
   return (
-    <Layout>
+    <>
+
       <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 pt-4 sm:pt-8">
@@ -164,6 +165,7 @@ export function Home() {
             done={stats.dev.done}
             total={stats.dev.total}
             icon={<Layers className="w-6 h-6 text-white" />}
+            week={currentWeek}
           />
           <CategoryCard 
             type="dep" 
@@ -171,6 +173,7 @@ export function Home() {
             done={stats.dep.done}
             total={stats.dep.total}
             icon={<Puzzle className="w-6 h-6 text-white" />}
+            week={currentWeek}
           />
           <CategoryCard 
             type="bug" 
@@ -178,6 +181,7 @@ export function Home() {
             done={stats.bug.done}
             total={stats.bug.total}
             icon={<Bug className="w-6 h-6 text-white" />}
+            week={currentWeek}
           />
 
           <Link to="/pool" className="block relative group">
@@ -201,15 +205,17 @@ export function Home() {
       </div>
       <ModulesModal isOpen={isModulesModalOpen} onClose={() => setIsModulesModalOpen(false)} />
       <MembersModal isOpen={isMembersModalOpen} onClose={() => setIsMembersModalOpen(false)} />
-    </Layout>
+    </>
+
   );
 }
 
-function CategoryCard({ type, active, done, total, icon }: { type: 'dev'|'dep'|'bug', active: number, done: number, total: number, icon: React.ReactNode }) {
+function CategoryCard({ type, active, done, total, icon, week }: { type: 'dev'|'dep'|'bug', active: number, done: number, total: number, icon: React.ReactNode, week: string }) {
+
   const info = TYPE_INFO[type];
   
   return (
-    <Link to={`/board/${type}`} className="block relative group focus:outline-none">
+    <Link to={`/board/${type}/${week}`} className="block relative group focus:outline-none">
       <div className={`${info.bg} rounded-3xl p-6 py-7 text-white flex flex-col justify-between min-h-[200px] shadow-lg ${info.shadow}/50 relative overflow-hidden hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}>
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-4">
