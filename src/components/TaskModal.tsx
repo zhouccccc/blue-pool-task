@@ -28,7 +28,10 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [dependentName, setDependentName] = React.useState("");
   const [dependedName, setDependedName] = React.useState("");
 
-  const modules = useLiveQuery(() => db.modules.toArray(), []) || [];
+  const modules = useLiveQuery(async () => {
+    const res = await db.modules.toArray();
+    return res.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, []) || [];
   const members = useLiveQuery(() => db.members.toArray(), []) || [];
 
   // Injected immutable system persona + retrieved list

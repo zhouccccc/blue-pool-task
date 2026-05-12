@@ -33,7 +33,10 @@ export function Board() {
     [type, activeWeek]
   );
   
-  const modules = useLiveQuery(() => db.modules.toArray(), []) || [];
+  const modules = useLiveQuery(async () => {
+    const res = await db.modules.toArray();
+    return res.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, []) || [];
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || !tasks) return;
@@ -133,7 +136,7 @@ export function Board() {
             {columns.map(col => {
               const colStyle = COL_STYLES[col.id] || COL_STYLES.new;
               return (
-              <div key={col.id} className="w-[240px] shrink-0 flex flex-col gap-4 h-full">
+              <div key={col.id} className="w-[290px] shrink-0 flex flex-col gap-4 h-full">
                 <div className="flex items-center gap-2 px-1 shrink-0">
                   <div className={`w-2 h-2 rounded-full ${colStyle.dot}`}></div>
                   <h5 className={`font-bold text-xs uppercase tracking-widest ${colStyle.text}`}>{col.label}</h5>
@@ -225,20 +228,26 @@ export function Board() {
                               
                               <div className="mt-3 pt-2.5 border-t border-slate-50 flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 truncate min-w-0">
-                                    {task.type === 'dep' && task.dependedName ? (
-                                      <Tooltip title={`负责人: ${task.dependedName}`}>
-                                        <div className={`text-[10px] font-bold border rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0 ${
-                                          isDepMe ? 'bg-amber-500 text-white border-amber-600' : 'bg-indigo-100 text-indigo-700 border-indigo-200/80'
-                                        }`}>
-                                          <User size={11} className={isDepMe ? 'text-amber-50' : 'opacity-70'} />
-                                          <span className="font-bold">{task.dependedName}</span>
-                                        </div>
-                                      </Tooltip>
-                                  ) : (
-                                    <span className="text-[10px] text-slate-400 truncate max-w-[80px] leading-none flex items-center gap-1">
-                                      <span className="opacity-50 font-mono">@</span>{task.source || '无来源'}
-                                    </span>
-                                  )}
+                                    {(() => {
+                                      const personName = task.type === 'dep' ? task.dependedName : task.source;
+                                      const personLabel = task.type === 'dep' ? '负责人' : '来源';
+                                      const isMe = personName === '我';
+                                      if (!personName) return null;
+
+                                      // Highlight badge ONLY if it matches the strict card-highlight condition (e.g. Depended on Me)
+                                      const isHighlighted = isDepMe && isMe;
+
+                                      return (
+                                        <Tooltip title={`${personLabel}: ${personName}`}>
+                                          <div className={`text-[10px] font-bold border rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0 ${
+                                            isHighlighted ? 'bg-amber-500 text-white border-amber-600' : 'bg-indigo-100 text-indigo-700 border-indigo-200/80'
+                                          }`}>
+                                            <User size={11} className={isHighlighted ? 'text-amber-50' : 'opacity-70'} />
+                                            <span className="font-bold">{personName}</span>
+                                          </div>
+                                        </Tooltip>
+                                      );
+                                    })()}
                                   
 
 

@@ -18,16 +18,19 @@ export function Home() {
 
   const stats = {
     dev: { 
-      total: tasks.filter(t => t.type === 'dev' && t.week === currentWeek).length,
-      active: tasks.filter(t => t.type === 'dev' && t.week === currentWeek && t.status === 'in_progress').length
+      active: tasks.filter(t => t.type === 'dev' && t.week === currentWeek && t.status === 'in_progress').length,
+      done: tasks.filter(t => t.type === 'dev' && t.week === currentWeek && ['completed', 'deployed'].includes(t.status)).length,
+      total: tasks.filter(t => t.type === 'dev' && t.week === currentWeek).length
     },
     dep: { 
-      total: tasks.filter(t => t.type === 'dep' && t.week === currentWeek).length,
-      active: tasks.filter(t => t.type === 'dep' && t.week === currentWeek && t.status === 'in_progress').length
+      active: tasks.filter(t => t.type === 'dep' && t.week === currentWeek && t.status === 'in_progress').length,
+      done: tasks.filter(t => t.type === 'dep' && t.week === currentWeek && t.status === 'completed').length,
+      total: tasks.filter(t => t.type === 'dep' && t.week === currentWeek).length
     },
     bug: { 
-      total: tasks.filter(t => t.type === 'bug' && t.week === currentWeek).length,
-      active: tasks.filter(t => t.type === 'bug' && t.week === currentWeek && t.status === 'in_progress').length
+      active: tasks.filter(t => t.type === 'bug' && t.week === currentWeek && t.status === 'in_progress').length,
+      done: tasks.filter(t => t.type === 'bug' && t.week === currentWeek && t.status === 'completed').length,
+      total: tasks.filter(t => t.type === 'bug' && t.week === currentWeek).length
     },
     pool: tasks.filter(t => !t.week).length
   };
@@ -66,20 +69,23 @@ export function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <CategoryCard 
             type="dev" 
-            weekCount={stats.dev.active} 
-            totalCount={stats.dev.total}
+            active={stats.dev.active} 
+            done={stats.dev.done}
+            total={stats.dev.total}
             icon={<Layers className="w-6 h-6 text-white" />}
           />
           <CategoryCard 
             type="dep" 
-            weekCount={stats.dep.active} 
-            totalCount={stats.dep.total}
+            active={stats.dep.active} 
+            done={stats.dep.done}
+            total={stats.dep.total}
             icon={<Puzzle className="w-6 h-6 text-white" />}
           />
           <CategoryCard 
             type="bug" 
-            weekCount={stats.bug.active} 
-            totalCount={stats.bug.total}
+            active={stats.bug.active} 
+            done={stats.bug.done}
+            total={stats.bug.total}
             icon={<Bug className="w-6 h-6 text-white" />}
           />
 
@@ -108,7 +114,7 @@ export function Home() {
   );
 }
 
-function CategoryCard({ type, weekCount, totalCount, icon }: { type: 'dev'|'dep'|'bug', weekCount: number, totalCount: number, icon: React.ReactNode }) {
+function CategoryCard({ type, active, done, total, icon }: { type: 'dev'|'dep'|'bug', active: number, done: number, total: number, icon: React.ReactNode }) {
   const info = TYPE_INFO[type];
   
   return (
@@ -125,7 +131,13 @@ function CategoryCard({ type, weekCount, totalCount, icon }: { type: 'dev'|'dep'
         </div>
         <div className="relative z-10 flex items-end justify-between mt-6">
           <div className="flex flex-col">
-             <span className="text-2xl font-bold tracking-tight">{weekCount} <span className="text-lg font-normal text-white/50 mx-1">/</span> {totalCount}</span>
+             <span className="text-2xl font-bold tracking-tight">
+               {active}
+               <span className="text-lg font-normal text-white/50 mx-1">/</span>
+               {done}
+               <span className="text-lg font-normal text-white/50 mx-1">/</span>
+               {total}
+             </span>
           </div>
         </div>
         <div className={`absolute rounded-full opacity-20 transition-transform duration-500 group-hover:scale-110 ${info.circle}`}></div>

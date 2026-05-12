@@ -2,7 +2,7 @@ import * as React from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import db, { Task, TaskType } from "../db";
 import { Layout } from "./Layout";
-import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps } from "antd";
+import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
 import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
@@ -14,7 +14,10 @@ export function TaskPool() {
     const all = await db.tasks.toArray();
     return all.filter(t => !t.week).reverse();
   }, []) || [];
-  const modules = useLiveQuery(() => db.modules.toArray(), []) || [];
+  const modules = useLiveQuery(async () => {
+    const res = await db.modules.toArray();
+    return res.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, []) || [];
   
   const [selectedKeys, setSelectedKeys] = React.useState<React.Key[]>([]);
   const [isBatchModalOpen, setIsBatchModalOpen] = React.useState(false);
@@ -23,6 +26,18 @@ export function TaskPool() {
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | undefined>(undefined);
   const [creationType, setCreationType] = React.useState<TaskType>("dev");
+
+  // Filtering States
+  const [filterModule, setFilterModule] = React.useState<number | 'all'>('all');
+  const [filterType, setFilterType] = React.useState<TaskType | 'all'>('all');
+
+  const filteredTasks = React.useMemo(() => {
+    return tasks.filter(t => {
+      const moduleMatch = filterModule === 'all' ? true : t.moduleId === filterModule;
+      const typeMatch = filterType === 'all' ? true : t.type === filterType;
+      return moduleMatch && typeMatch;
+    });
+  }, [tasks, filterModule, filterType]);
 
   const handleBatchPromote = async () => {
     if (!targetWeek) return message.warning("请先选择目标周数");
@@ -86,6 +101,33 @@ export function TaskPool() {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 p-1.5 rounded-xl mr-2">
+              <Select 
+                value={filterModule} 
+                onChange={setFilterModule}
+                variant="borderless"
+                className="w-32 font-medium text-sm"
+                popupClassName="min-w-[160px]"
+                options={[
+                  { value: 'all', label: '📁 所有模块' },
+                  ...modules.map(m => ({ value: m.id, label: m.name }))
+                ]}
+              />
+              <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+              <Select 
+                value={filterType} 
+                onChange={setFilterType}
+                variant="borderless"
+                className="w-28 font-medium text-sm"
+                options={[
+                  { value: 'all', label: '📑 所有类型' },
+                  { value: 'dev', label: '开发' },
+                  { value: 'bug', label: 'Bug修复' },
+                  { value: 'dep', label: '依赖' },
+                ]}
+              />
+            </div>
+            
             {selectedKeys.length > 0 && (
                <>
                  <Button 
@@ -122,7 +164,7 @@ export function TaskPool() {
              </Dropdown>
 
              {/* Task Cards */}
-             {tasks.map(task => {
+             {filteredTasks.map(task => {
                const isSelected = selectedKeys.includes(task.id);
                const info = TYPE_INFO[task.type];
                const moduleName = modules.find(m => m.id === task.moduleId)?.name;
@@ -166,21 +208,26 @@ export function TaskPool() {
 
                    <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                      <div className="flex items-center gap-1.5 truncate min-w-0">
-                       {task.type === 'dep' && task.dependedName ? (
-                         <Tooltip title={`负责人: ${task.dependedName}`}>
-                           <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 flex-shrink-0 ${
-                             isDepMe ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
-                           }`}>
-                             <User size={10} className={isDepMe ? 'text-amber-50' : ''} />
-                             <span className="font-bold truncate">{task.dependedName || '未指定'}</span>
-                           </div>
-                         </Tooltip>
-                       ) : (
-                         <div className="flex items-center gap-1 max-w-[100px]">
-                            <span className="text-[10px] font-mono opacity-50">@</span>
-                            <span className="truncate">{task.source || '无'}</span>
-                         </div>
-                       )}
+                        {(() => {
+                          const personName = task.type === 'dep' ? task.dependedName : task.source;
+                          const personLabel = task.type === 'dep' ? '负责人' : '来源';
+                          const isMe = personName === '我';
+                          if (!personName) return null;
+                          
+                          // Highlight badge ONLY if it matches the strict card-highlight condition (e.g. Depended on Me)
+                          const isHighlighted = isDepMe && isMe;
+                          
+                          return (
+                            <Tooltip title={`${personLabel}: ${personName}`}>
+                              <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 flex-shrink-0 ${
+                                isHighlighted ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                              }`}>
+                                <User size={10} className={isHighlighted ? 'text-amber-50' : ''} />
+                                <span className="font-bold truncate">{personName}</span>
+                              </div>
+                            </Tooltip>
+                          );
+                        })()}
 
                        <span className="text-[9px] text-slate-400 font-mono whitespace-nowrap shrink-0 opacity-80">
                          {task.createdAt ? dayjs(task.createdAt).format('MM/DD HH:mm:ss') : '-'}
