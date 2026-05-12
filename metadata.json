@@ -1,0 +1,6 @@
+{
+  "name": "蓝图 - 个人任务管理",
+  "description": "基于 IndexedDB 的个人任务管理工具，支持开发、依赖、Bug 任务的 Kanban 拖拽管理。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
