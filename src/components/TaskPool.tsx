@@ -4,7 +4,7 @@ import db, { Task, TaskType } from "../db";
 import { Layout } from "./Layout";
 import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
-import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock } from "lucide-react";
+import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { TaskModal } from "./TaskModal";
 import dayjs from "dayjs";
@@ -101,26 +101,28 @@ export function TaskPool() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 p-1.5 rounded-xl mr-2">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1 shadow-sm rounded-xl mr-2">
+              <FolderKanban size={14} className="text-slate-400 shrink-0" />
               <Select 
                 value={filterModule} 
                 onChange={setFilterModule}
                 variant="borderless"
-                className="w-32 font-medium text-sm"
+                className="w-28 font-medium text-sm"
                 popupClassName="min-w-[160px]"
                 options={[
-                  { value: 'all', label: '📁 所有模块' },
+                  { value: 'all', label: '所有模块' },
                   ...modules.map(m => ({ value: m.id, label: m.name }))
                 ]}
               />
-              <div className="w-px h-4 bg-slate-300 mx-0.5"></div>
+              <div className="w-px h-4 bg-slate-200 mx-0.5"></div>
+              <ListFilter size={14} className="text-slate-400 shrink-0" />
               <Select 
                 value={filterType} 
                 onChange={setFilterType}
                 variant="borderless"
                 className="w-28 font-medium text-sm"
                 options={[
-                  { value: 'all', label: '📑 所有类型' },
+                  { value: 'all', label: '所有类型' },
                   { value: 'dev', label: '开发' },
                   { value: 'bug', label: 'Bug修复' },
                   { value: 'dep', label: '依赖' },
@@ -153,16 +155,6 @@ export function TaskPool() {
         {/* Dashboard Grid View */}
         <div className="flex-1 overflow-y-auto pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-0.5">
-             {/* The Add Button Card */}
-             <Dropdown menu={creationMenuProps} trigger={['click']} placement="bottomCenter">
-               <div className="bg-white/50 border-2 border-dashed border-slate-300 rounded-2xl min-h-[160px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-white group transition-all duration-200">
-                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center mb-3 transition-colors">
-                    <Plus size={24} />
-                 </div>
-                 <span className="font-bold text-sm text-slate-500 group-hover:text-blue-600 transition-colors">创建池任务</span>
-               </div>
-             </Dropdown>
-
              {/* Task Cards */}
              {filteredTasks.map(task => {
                const isSelected = selectedKeys.includes(task.id);
@@ -176,8 +168,8 @@ export function TaskPool() {
                    onClick={() => toggleSelection(task.id)}
                    className={`p-4 rounded-2xl border-2 relative flex flex-col justify-between min-h-[160px] shadow-sm transition-all duration-200 cursor-pointer select-none
                      ${isSelected ? 'bg-blue-50/20 border-blue-500 ring-4 ring-blue-500/10 scale-[0.99]' : 
-                       isDepMe ? 'bg-amber-50/40 border-amber-400 shadow-amber-200/30 hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5' : 
-                       'bg-white border-slate-200 hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5'}
+                       isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5' : 
+                       `${info.cardStyles || 'bg-white border-slate-200 hover:shadow-md hover:border-slate-300'} hover:-translate-y-0.5`}
                    `}
                  >
                    <div className="relative">
@@ -258,6 +250,16 @@ export function TaskPool() {
                  </div>
                )
              })}
+
+             {/* The Add Button Card - Moved to end */}
+             <Dropdown menu={creationMenuProps} trigger={['click']} placement="bottomCenter">
+               <div className="bg-white/50 border-2 border-dashed border-slate-300 rounded-2xl min-h-[160px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-white group transition-all duration-200">
+                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center mb-3 transition-colors">
+                    <Plus size={24} />
+                 </div>
+                 <span className="font-bold text-sm text-slate-500 group-hover:text-blue-600 transition-colors">创建池任务</span>
+               </div>
+             </Dropdown>
           </div>
 
           {tasks.length === 0 && (

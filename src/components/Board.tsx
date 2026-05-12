@@ -164,6 +164,7 @@ export function Board() {
                       )}
                       {getTasksByStatus(col.id).map((task, index) => {
                         const isDepMe = task.type === 'dep' && task.dependedName === '我';
+                        const info = TYPE_INFO[task.type];
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
                             {(provided, snapshot) => (
@@ -173,8 +174,8 @@ export function Board() {
                                 {...provided.dragHandleProps}
                                 className={`p-3.5 rounded-xl shadow-sm border group relative transition-all duration-200 cursor-grab active:cursor-grabbing 
                                   ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] !bg-white border-blue-200' 
-                                  : isDepMe ? 'bg-amber-50/40 border-amber-300 shadow-amber-200/20 hover:shadow-md hover:-translate-y-0.5 hover:border-amber-400' 
-                                  : 'bg-white border-slate-200 hover:shadow-md hover:-translate-y-0.5'} 
+                                  : isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:shadow-md hover:-translate-y-0.5' 
+                                  : `${info.cardStyles || 'bg-white border-slate-200 hover:border-slate-300'} hover:-translate-y-0.5`} 
                                   ${colStyle.cardOpacity || ''}`}
                               >
                               <div className="flex justify-between items-start mb-2.5">
