@@ -3,25 +3,32 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "../db";
 import { Link } from "react-router";
 import { Layout } from "./Layout";
-import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase } from "lucide-react";
+import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users } from "lucide-react";
 import { TYPE_INFO } from "../constants";
 import { getCurrentWeekStr } from "../lib/utils";
 import { Button } from "./ui/button";
 import { ModulesModal } from "./ModulesModal";
+import { MembersModal } from "./MembersModal";
 
 export function Home() {
   const currentWeek = getCurrentWeekStr();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
   const [isModulesModalOpen, setIsModulesModalOpen] = React.useState(false);
-
-  const devTasks = tasks.filter(t => t.type === 'dev' && t.week);
-  const depTasks = tasks.filter(t => t.type === 'dep' && t.week);
-  const bugTasks = tasks.filter(t => t.type === 'bug' && t.week);
+  const [isMembersModalOpen, setIsMembersModalOpen] = React.useState(false);
 
   const stats = {
-    dev: { total: devTasks.length, week: devTasks.filter(t => t.week === currentWeek).length },
-    dep: { total: depTasks.length, week: depTasks.filter(t => t.week === currentWeek).length },
-    bug: { total: bugTasks.length, week: bugTasks.filter(t => t.week === currentWeek).length },
+    dev: { 
+      total: tasks.filter(t => t.type === 'dev' && t.week === currentWeek).length,
+      active: tasks.filter(t => t.type === 'dev' && t.week === currentWeek && t.status === 'in_progress').length
+    },
+    dep: { 
+      total: tasks.filter(t => t.type === 'dep' && t.week === currentWeek).length,
+      active: tasks.filter(t => t.type === 'dep' && t.week === currentWeek && t.status === 'in_progress').length
+    },
+    bug: { 
+      total: tasks.filter(t => t.type === 'bug' && t.week === currentWeek).length,
+      active: tasks.filter(t => t.type === 'bug' && t.week === currentWeek && t.status === 'in_progress').length
+    },
     pool: tasks.filter(t => !t.week).length
   };
 
@@ -44,28 +51,34 @@ export function Home() {
               管理您的各个维度的任务，当前共有 <strong className="text-slate-800">{totalTasks}</strong> 项追踪中的任务。
             </p>
           </div>
-          <Button variant="outline" className="text-blue-600 border-blue-200 shrink-0 bg-white shadow-sm hover:bg-blue-50" onClick={() => setIsModulesModalOpen(true)}>
-            <Database className="w-4 h-4 mr-2" />
-            模块管理
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" className="text-indigo-600 border-indigo-200 bg-white shadow-sm hover:bg-indigo-50" onClick={() => setIsMembersModalOpen(true)}>
+              <Users className="w-4 h-4 mr-2" />
+              人员管理
+            </Button>
+            <Button variant="outline" className="text-blue-600 border-blue-200 bg-white shadow-sm hover:bg-blue-50" onClick={() => setIsModulesModalOpen(true)}>
+              <Database className="w-4 h-4 mr-2" />
+              模块管理
+            </Button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <CategoryCard 
             type="dev" 
-            weekCount={stats.dev.week} 
+            weekCount={stats.dev.active} 
             totalCount={stats.dev.total}
             icon={<Layers className="w-6 h-6 text-white" />}
           />
           <CategoryCard 
             type="dep" 
-            weekCount={stats.dep.week} 
+            weekCount={stats.dep.active} 
             totalCount={stats.dep.total}
             icon={<Puzzle className="w-6 h-6 text-white" />}
           />
           <CategoryCard 
             type="bug" 
-            weekCount={stats.bug.week} 
+            weekCount={stats.bug.active} 
             totalCount={stats.bug.total}
             icon={<Bug className="w-6 h-6 text-white" />}
           />
@@ -90,6 +103,7 @@ export function Home() {
         </div>
       </div>
       <ModulesModal isOpen={isModulesModalOpen} onClose={() => setIsModulesModalOpen(false)} />
+      <MembersModal isOpen={isMembersModalOpen} onClose={() => setIsMembersModalOpen(false)} />
     </Layout>
   );
 }

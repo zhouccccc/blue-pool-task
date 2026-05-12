@@ -8,6 +8,12 @@ export interface Module {
   createdAt: number;
 }
 
+export interface Member {
+  id: number;
+  name: string;
+  createdAt: number;
+}
+
 export interface Task {
   id: number;
   type: TaskType;
@@ -27,12 +33,14 @@ export interface Task {
 
 const db = new Dexie('TaskManagementDB') as Dexie & {
   modules: EntityTable<Module, 'id'>;
+  members: EntityTable<Member, 'id'>;
   tasks: EntityTable<Task, 'id'>;
 };
 
 // Schema declaration
-db.version(2).stores({
+db.version(3).stores({
   modules: '++id, name, createdAt',
+  members: '++id, name, createdAt',
   tasks: '++id, type, week, moduleId, status, order, createdAt',
 });
 

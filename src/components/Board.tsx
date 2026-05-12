@@ -5,18 +5,21 @@ import db, { TaskType, Module, Task } from "../db";
 import { STATUS_MAP, TYPE_INFO } from "../constants";
 import { Layout } from "./Layout";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye } from "lucide-react";
 import { Button } from "./ui/button";
 import { TaskModal } from "./TaskModal";
+import { Modal } from "./ui/modal";
 import { Image, Select, Tooltip, message } from "antd";
-import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions } from "../lib/utils";
+import dayjs from "dayjs";
+import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange } from "../lib/utils";
 
 export function Board() {
   const { type } = useParams<{ type: TaskType }>();
+  const [activeWeek, setActiveWeek] = React.useState(getCurrentWeekStr());
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | undefined>(undefined);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
-  const [activeWeek, setActiveWeek] = React.useState(getCurrentWeekStr());
+  const [viewingTask, setViewingTask] = React.useState<Task | null>(null);
 
   if (!type || !STATUS_MAP[type]) {
     return <Layout><div className="flex items-center justify-center h-[50vh]">未知或者不支持的任务类型</div></Layout>;
@@ -73,8 +76,8 @@ export function Board() {
     }
   }
 
-  const handlePostpone = async (e: React.MouseEvent, task: Task) => {
-    e.stopPropagation();
+  const handlePostpone = async (task: Task, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!task.week) return;
     const nextWeek = getNextWeekStr(task.week);
     if (window.confirm(`确定要将该任务顺延至下一周吗？`)) {
@@ -84,6 +87,9 @@ export function Board() {
         updatedAt: Date.now() 
       });
       message.success("任务已成功顺延至下周");
+      if (viewingTask?.id === task.id) {
+         setViewingTask(null); // Close detail view after action
+      }
     }
   };
 
@@ -153,15 +159,21 @@ export function Board() {
                           <span className="text-xs font-bold text-slate-500 group-hover:text-blue-600 transition-colors">添加新任务</span>
                         </button>
                       )}
-                      {getTasksByStatus(col.id).map((task, index) => (
-                        <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 group relative transition-all duration-200 cursor-grab active:cursor-grabbing ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] !bg-white' : 'hover:shadow-md hover:-translate-y-0.5'} ${colStyle.cardOpacity || ''}`}
-                            >
+                      {getTasksByStatus(col.id).map((task, index) => {
+                        const isDepMe = task.type === 'dep' && task.dependedName === '我';
+                        return (
+                          <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`p-3.5 rounded-xl shadow-sm border group relative transition-all duration-200 cursor-grab active:cursor-grabbing 
+                                  ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] !bg-white border-blue-200' 
+                                  : isDepMe ? 'bg-amber-50/40 border-amber-300 shadow-amber-200/20 hover:shadow-md hover:-translate-y-0.5 hover:border-amber-400' 
+                                  : 'bg-white border-slate-200 hover:shadow-md hover:-translate-y-0.5'} 
+                                  ${colStyle.cardOpacity || ''}`}
+                              >
                               <div className="flex justify-between items-start mb-2.5">
                                 <div className="flex items-center gap-1.5 overflow-hidden mr-2">
                                   {task.isPostponed && (
@@ -184,11 +196,11 @@ export function Board() {
 
                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 -mr-1 -mt-1 bg-white/80 backdrop-blur pl-1 rounded-bl-lg">
                                   <button 
-                                    onClick={(e) => handlePostpone(e, task)} 
-                                    className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                    title="顺延到下周"
+                                    onClick={(e) => { e.stopPropagation(); setViewingTask(task); }} 
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="查看详情"
                                   >
-                                    <FastForward className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5" />
                                   </button>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); openEditTask(task); }} 
@@ -213,18 +225,23 @@ export function Board() {
                               
                               <div className="mt-3 pt-2.5 border-t border-slate-50 flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 truncate min-w-0">
-                                  {task.type === 'dep' && task.dependedName ? (
-                                    <Tooltip title={`负责人: ${task.dependedName}`}>
-                                      <div className="text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0">
-                                        <User size={11} className="opacity-70" />
-                                        <span>{task.dependedName}</span>
-                                      </div>
-                                    </Tooltip>
+                                    {task.type === 'dep' && task.dependedName ? (
+                                      <Tooltip title={`负责人: ${task.dependedName}`}>
+                                        <div className={`text-[10px] font-bold border rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0 ${
+                                          isDepMe ? 'bg-amber-500 text-white border-amber-600' : 'bg-indigo-100 text-indigo-700 border-indigo-200/80'
+                                        }`}>
+                                          <User size={11} className={isDepMe ? 'text-amber-50' : 'opacity-70'} />
+                                          <span className="font-bold">{task.dependedName}</span>
+                                        </div>
+                                      </Tooltip>
                                   ) : (
                                     <span className="text-[10px] text-slate-400 truncate max-w-[80px] leading-none flex items-center gap-1">
                                       <span className="opacity-50 font-mono">@</span>{task.source || '无来源'}
                                     </span>
                                   )}
+                                  
+
+
                                   {task.image && (
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); setPreviewImage(task.image || null); }}
@@ -236,16 +253,15 @@ export function Board() {
                                     </button>
                                   )}
                                 </div>
-                                {task.week && (
-                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-100/50 px-1.5 py-0.5 rounded border border-slate-200/50 shadow-sm whitespace-nowrap shrink-0">
-                                    {formatWeekRange(task.week)}
-                                  </span>
-                                )}
+                                <span className="text-[9px] text-slate-400 whitespace-nowrap shrink-0 font-mono leading-none">
+                                  {task.createdAt ? dayjs(task.createdAt).format('MM/DD HH:mm:ss') : '-'}
+                                </span>
                               </div>
                             </div>
                           )}
                         </Draggable>
-                      ))}
+                        );
+                      })}
                       {provided.placeholder}
                     </div>
                   )}
@@ -255,6 +271,113 @@ export function Board() {
           </div>
         </DragDropContext>
       </div>
+
+      {/* 任务详情弹窗 */}
+      <Modal
+        isOpen={!!viewingTask}
+        onClose={() => setViewingTask(null)}
+        title="任务详情"
+        footer={
+          <div className="flex justify-between w-full items-center">
+            {viewingTask?.week ? (
+              <Button 
+                variant="outline" 
+                className="text-amber-600 border-amber-200 hover:bg-amber-50 font-semibold"
+                onClick={() => handlePostpone(viewingTask!)}
+              >
+                顺延到下周
+              </Button>
+            ) : <div></div>}
+            <Button onClick={() => setViewingTask(null)}>关闭</Button>
+          </div>
+        }
+      >
+        {viewingTask && (() => {
+          const mName = modules.find(m => m.id === viewingTask.moduleId)?.name || '未分配';
+          const sLabel = columns.find(c => c.id === viewingTask.status)?.label || '未知';
+          
+          // Function to render a uniform row
+          const InfoRow = ({ label, children, highlight = false }: { label: string, children: React.ReactNode, highlight?: boolean }) => (
+            <div className="grid grid-cols-[120px_1fr] items-start group border-b border-slate-100 last:border-0">
+              <div className="bg-slate-50/60 p-3 text-sm font-bold text-slate-500 flex items-center h-full border-r border-slate-100">
+                {label}
+              </div>
+              <div className={`p-3 text-sm ${highlight ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                {children}
+              </div>
+            </div>
+          );
+
+          return (
+            <div className="space-y-6 py-1">
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <InfoRow label="任务描述" highlight>
+                   <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-slate-800 py-1">{viewingTask.description}</div>
+                </InfoRow>
+                
+                <InfoRow label="归属自然周">
+                  {viewingTask.week ? formatWeekRange(viewingTask.week) : '-'}
+                </InfoRow>
+
+                <InfoRow label="日期范围">
+                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100 text-xs font-bold">
+                    {viewingTask.week ? getWeekDateRange(viewingTask.week) : '-'}
+                  </span>
+                </InfoRow>
+
+                <InfoRow label="归属模块">
+                  <span className="inline-flex items-center bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 text-xs font-bold">
+                    {mName}
+                  </span>
+                </InfoRow>
+
+                <InfoRow label="当前状态">
+                  <span className="inline-flex items-center bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100 text-xs font-bold">
+                    {sLabel}
+                  </span>
+                </InfoRow>
+
+                {viewingTask.type === 'dep' ? (
+                  <>
+                    <InfoRow label="依赖方 (谁依赖)">{viewingTask.dependentName || '-'}</InfoRow>
+                    <InfoRow label="承接方 (被依赖)">
+                       <div className="flex items-center gap-1.5 font-bold text-indigo-700">
+                         <User size={14} />
+                         {viewingTask.dependedName || '-'}
+                       </div>
+                    </InfoRow>
+                  </>
+                ) : (
+                  <InfoRow label="来源">{viewingTask.source || '-'}</InfoRow>
+                )}
+
+                <InfoRow label="创建时间">
+                   <div className="flex items-center gap-1.5 font-mono text-slate-500">
+                     <Clock size={13} className="opacity-70" />
+                     {viewingTask.createdAt ? dayjs(viewingTask.createdAt).format('MM/DD HH:mm:ss') : '-'}
+                   </div>
+                </InfoRow>
+
+                <InfoRow label="最近更新">
+                   <div className="flex items-center gap-1.5 font-mono text-slate-500">
+                     <Clock size={13} className="opacity-70" />
+                     {viewingTask.updatedAt ? dayjs(viewingTask.updatedAt).format('MM/DD HH:mm:ss') : '-'}
+                   </div>
+                </InfoRow>
+              </div>
+
+              {viewingTask.image && (
+                <div className="pt-2 space-y-2">
+                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">任务附图</div>
+                   <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                      <Image src={viewingTask.image} className="w-full h-auto object-contain max-h-[320px]" />
+                   </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
 
       <TaskModal 
         isOpen={isTaskModalOpen} 

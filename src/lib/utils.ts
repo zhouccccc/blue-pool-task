@@ -42,16 +42,26 @@ export function formatWeekRange(weekStr: string | number | undefined) {
   if (!weekStr) return '';
   const str = String(weekStr);
   if (!str.includes('-W')) {
-    return `Wk${str}`;
+    return `W${str}`;
   }
   
+  const [, weekNumStr] = str.split('-W');
+  const week = parseInt(weekNumStr, 10);
+  if (isNaN(week)) return str;
+
+  return `W${week}`;
+}
+
+export function getWeekDateRange(weekStr: string | number | undefined) {
+  if (!weekStr) return '';
+  const str = String(weekStr);
+  if (!str.includes('-W')) return '';
+
   const [yearStr, weekNumStr] = str.split('-W');
   const year = parseInt(yearStr, 10);
   const week = parseInt(weekNumStr, 10);
-  if (isNaN(year) || isNaN(week)) return str;
+  if (isNaN(year) || isNaN(week)) return '';
 
   const d = dayjs().year(year).isoWeek(week).startOf('isoWeek');
-  const start = d.format('MM/DD');
-  const end = d.endOf('isoWeek').format('MM/DD');
-  return `W${week} (${start}-${end})`;
+  return `${d.format('MM/DD')} - ${d.endOf('isoWeek').format('MM/DD')}`;
 }

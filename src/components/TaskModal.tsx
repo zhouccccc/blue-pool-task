@@ -29,6 +29,13 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [dependedName, setDependedName] = React.useState("");
 
   const modules = useLiveQuery(() => db.modules.toArray(), []) || [];
+  const members = useLiveQuery(() => db.members.toArray(), []) || [];
+
+  // Injected immutable system persona + retrieved list
+  const memberOptions = [
+    { value: "我", label: "我" },
+    ...members.map(m => ({ value: m.name, label: m.name }))
+  ];
 
   React.useEffect(() => {
     if (isOpen) {
@@ -191,10 +198,14 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         {type !== 'dep' && (
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">来源 <span className="text-red-500">*</span></label>
-            <Input 
-              value={source} 
-              onChange={e => setSource(e.target.value)} 
-              placeholder="需求来源、链接或人员" 
+            <Select 
+              showSearch
+              value={source || undefined} 
+              onChange={setSource} 
+              className="w-full h-10"
+              placeholder="请选择或搜索人员" 
+              options={memberOptions}
+              optionFilterProp="label"
             />
           </div>
         )}
@@ -203,18 +214,26 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
           <div className="grid grid-cols-2 gap-4 bg-indigo-50/30 p-3 rounded-lg border border-indigo-100/50">
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-indigo-900">依赖方 (谁依赖) <span className="text-red-500">*</span></label>
-              <Input 
-                value={dependentName} 
-                onChange={e => setDependentName(e.target.value)} 
-                placeholder="需求提出方" 
+              <Select 
+                showSearch
+                value={dependentName || undefined} 
+                onChange={setDependentName} 
+                className="w-full h-10"
+                placeholder="选择需求提出方" 
+                options={memberOptions}
+                optionFilterProp="label"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-indigo-900">承接方 (被依赖) <span className="text-red-500">*</span></label>
-              <Input 
-                value={dependedName} 
-                onChange={e => setDependedName(e.target.value)} 
-                placeholder="交付执行人" 
+              <Select 
+                showSearch
+                value={dependedName || undefined} 
+                onChange={setDependedName} 
+                className="w-full h-10"
+                placeholder="选择交付执行人" 
+                options={memberOptions}
+                optionFilterProp="label"
               />
             </div>
           </div>
@@ -233,7 +252,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">周数与日期 {!isPool && <span className="text-red-500">*</span>}</label>
+            <label className="text-sm font-medium text-slate-700">自然周 {!isPool && <span className="text-red-500">*</span>}</label>
             <WeekPicker 
               value={week} 
               onChange={setWeek} 

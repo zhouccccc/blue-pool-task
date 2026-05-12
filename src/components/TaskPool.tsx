@@ -4,9 +4,10 @@ import db, { Task, TaskType } from "../db";
 import { Layout } from "./Layout";
 import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps } from "antd";
 import { TYPE_INFO } from "../constants";
-import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User } from "lucide-react";
+import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { TaskModal } from "./TaskModal";
+import dayjs from "dayjs";
 
 export function TaskPool() {
   const tasks = useLiveQuery(async () => {
@@ -125,28 +126,38 @@ export function TaskPool() {
                const isSelected = selectedKeys.includes(task.id);
                const info = TYPE_INFO[task.type];
                const moduleName = modules.find(m => m.id === task.moduleId)?.name;
+               const isDepMe = task.type === 'dep' && task.dependedName === '我';
 
                return (
                  <div 
                    key={task.id}
                    onClick={() => toggleSelection(task.id)}
-                   className={`bg-white p-4 rounded-2xl border-2 relative flex flex-col justify-between min-h-[160px] shadow-sm transition-all duration-200 cursor-pointer select-none
-                     ${isSelected ? 'border-blue-500 bg-blue-50/20 ring-4 ring-blue-500/10 scale-[0.99]' : 'border-slate-200 hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5'}
+                   className={`p-4 rounded-2xl border-2 relative flex flex-col justify-between min-h-[160px] shadow-sm transition-all duration-200 cursor-pointer select-none
+                     ${isSelected ? 'bg-blue-50/20 border-blue-500 ring-4 ring-blue-500/10 scale-[0.99]' : 
+                       isDepMe ? 'bg-amber-50/40 border-amber-400 shadow-amber-200/30 hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5' : 
+                       'bg-white border-slate-200 hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5'}
                    `}
                  >
                    <div className="relative">
-                     <div className="flex justify-between items-start mb-3">
-                       <div onClick={(e) => e.stopPropagation()}>
-                         <Checkbox 
-                           checked={isSelected} 
-                           onChange={() => toggleSelection(task.id)}
-                           className="transform scale-110"
-                         />
-                       </div>
-                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold border flex items-center gap-1 ${info.bg.replace('bg-', 'text-').replace('-600', '-700').replace('-500', '-600')} ${info.bg.replace('bg-', 'bg-').replace('-600', '-50').replace('-500', '-50')} border-current opacity-80`}>
-                         {info.label}
-                       </span>
-                     </div>
+                      <div className="flex justify-between items-start mb-3">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox 
+                            checked={isSelected} 
+                            onChange={() => toggleSelection(task.id)}
+                            className="transform scale-110"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {moduleName && (
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
+                              {moduleName}
+                            </span>
+                          )}
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold border flex items-center gap-1 ${info.bg.replace('bg-', 'text-').replace('-600', '-700').replace('-500', '-600')} ${info.bg.replace('bg-', 'bg-').replace('-600', '-50').replace('-500', '-50')} border-current opacity-80 whitespace-nowrap`}>
+                            {info.label}
+                          </span>
+                        </div>
+                      </div>
                      
                      <p className="text-slate-800 text-[13.5px] font-medium leading-snug line-clamp-3 mb-3">
                        {task.description}
@@ -155,21 +166,26 @@ export function TaskPool() {
 
                    <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                      <div className="flex items-center gap-1.5 truncate min-w-0">
-                       {task.type === 'dep' && task.dependedName && (
+                       {task.type === 'dep' && task.dependedName ? (
                          <Tooltip title={`负责人: ${task.dependedName}`}>
-                           <div className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-100 flex items-center gap-0.5 flex-shrink-0">
-                             <User size={10} />
-                             <span>{task.dependedName}</span>
+                           <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 flex-shrink-0 ${
+                             isDepMe ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                           }`}>
+                             <User size={10} className={isDepMe ? 'text-amber-50' : ''} />
+                             <span className="font-bold truncate">{task.dependedName || '未指定'}</span>
                            </div>
                          </Tooltip>
-                       )}
-                       {moduleName ? (
-                         <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded truncate max-w-[60px]">
-                           {moduleName}
-                         </span>
                        ) : (
-                         !task.dependedName && <span className="text-[10px] text-slate-400 italic">未分类</span>
+                         <div className="flex items-center gap-1 max-w-[100px]">
+                            <span className="text-[10px] font-mono opacity-50">@</span>
+                            <span className="truncate">{task.source || '无'}</span>
+                         </div>
                        )}
+
+                       <span className="text-[9px] text-slate-400 font-mono whitespace-nowrap shrink-0 opacity-80">
+                         {task.createdAt ? dayjs(task.createdAt).format('MM/DD HH:mm:ss') : '-'}
+                       </span>
+
                        {task.image && <ImageIcon className="w-3 h-3 text-sky-500 flex-shrink-0" />}
                      </div>
 
