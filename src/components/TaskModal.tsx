@@ -1,13 +1,14 @@
 import * as React from "react";
-import db, { TaskType, Task, Module } from "../db";
+import db, { TaskType, Task, Module, SubTask } from "../db";
 import { Modal } from "./ui/modal";
 import { Input, Textarea } from "./ui/forms";
 import { Select } from "antd";
 import { Button } from "./ui/button";
 import { STATUS_MAP } from "../constants";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, GripVertical } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [status, setStatus] = React.useState("");
   const [dependentName, setDependentName] = React.useState("");
   const [dependedName, setDependedName] = React.useState("");
+  const [subTasks, setSubTasks] = React.useState<SubTask[]>([]);
+  const [newSubTaskTitle, setNewSubTaskTitle] = React.useState("");
 
   const modules = useLiveQuery(async () => {
     const res = await db.modules.toArray();
@@ -52,6 +55,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setStatus(task.status);
         setDependentName(task.dependentName || "");
         setDependedName(task.dependedName || "");
+        setSubTasks(task.subTasks || []);
       } else {
         setDescription("");
         setSource("");
@@ -61,7 +65,9 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setStatus(STATUS_MAP[type][0].id);
         setDependentName("");
         setDependedName("");
+        setSubTasks([]);
       }
+      setNewSubTaskTitle("");
     }
   }, [isOpen, task, type, defaultWeek]);
 
@@ -92,6 +98,39 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       document.removeEventListener("paste", handlePaste);
     };
   }, [isOpen]);
+
+  const addSubTask = () => {
+    const title = newSubTaskTitle.trim();
+    if (!title) return;
+    const newItem: SubTask = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title,
+      done: false,
+    };
+    setSubTasks(prev => [...prev, newItem]);
+    setNewSubTaskTitle("");
+  };
+
+  const removeSubTask = (id: string) => {
+    setSubTasks(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleSubTaskDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) return;
+    setSubTasks(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(result.source.index, 1);
+      next.splice(result.destination!.index, 0, moved);
+      return next;
+    });
+  };
+
+  const handleSubTaskKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addSubTask();
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,6 +191,11 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       taskData.dependentName = dependentName;
       taskData.dependedName = dependedName;
       taskData.source = dependentName; // Auto-map dependent as the source
+    }
+
+    // Only persist subTasks for dev type
+    if (type === 'dev') {
+      taskData.subTasks = subTasks.length > 0 ? subTasks : undefined;
     }
 
     if (task) {
@@ -262,6 +306,74 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
             />
           </div>
         </div>
+
+        {/* SubTasks — only for dev type */}
+        {type === 'dev' && (
+          <div className="space-y-2 pt-1">
+            <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+              子任务
+              {subTasks.length > 0 && (
+                <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-bold">
+                  {subTasks.length}
+                </span>
+              )}
+            </label>
+
+            {subTasks.length > 0 && (
+              <DragDropContext onDragEnd={handleSubTaskDragEnd}>
+                <Droppable droppableId="subtask-list">
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="space-y-1 max-h-[200px] overflow-y-auto pr-1"
+                    >
+                      {subTasks.map((st, idx) => (
+                        <Draggable key={st.id} draggableId={st.id} index={idx}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`flex items-center gap-2 group bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 transition-shadow ${
+                                snapshot.isDragging ? 'shadow-md border-blue-300 bg-white' : ''
+                              }`}
+                            >
+                              {/* Drag handle */}
+                              <div
+                                {...provided.dragHandleProps}
+                                className="shrink-0 cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-slate-400 transition-colors"
+                              >
+                                <GripVertical size={13} />
+                              </div>
+                              <span className="flex-1 text-sm text-slate-700 select-none">{st.title}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeSubTask(st.id)}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-500 transition-all rounded shrink-0"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+
+            <input
+              type="text"
+              value={newSubTaskTitle}
+              onChange={e => setNewSubTaskTitle(e.target.value)}
+              onKeyDown={handleSubTaskKeyDown}
+              placeholder="输入子任务描述，回车添加..."
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white placeholder:text-slate-400"
+            />
+          </div>
+        )}
 
         <div className="space-y-1.5 pt-2">
           <label className="text-sm font-medium text-slate-700 flex items-center gap-2">

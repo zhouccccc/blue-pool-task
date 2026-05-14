@@ -2,6 +2,12 @@ import Dexie, { type EntityTable } from 'dexie';
 
 export type TaskType = 'dev' | 'dep' | 'bug';
 
+export interface SubTask {
+  id: string;       // UUID-like unique id
+  title: string;
+  done: boolean;
+}
+
 export interface Module {
   id: number;
   name: string;
@@ -28,6 +34,7 @@ export interface Task {
   isPostponed?: boolean;
   dependentName?: string;
   dependedName?: string;
+  subTasks?: SubTask[]; // Only applicable for 'dev' type tasks
   createdAt: number;
   updatedAt: number;
 }
@@ -53,6 +60,13 @@ db.version(4).stores({
   for (let i = 0; i < modules.length; i++) {
     await tx.table('modules').update(modules[i].id, { order: i });
   }
+});
+
+// Version 5: add subTasks field support (stored as JSON in IndexedDB, no schema change needed)
+db.version(5).stores({
+  modules: '++id, name, order, createdAt',
+  members: '++id, name, createdAt',
+  tasks: '++id, type, week, moduleId, status, order, createdAt',
 });
 
 export default db;

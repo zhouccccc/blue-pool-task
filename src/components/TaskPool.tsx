@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router";
 
 import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
-import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter } from "lucide-react";
+import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { TaskModal } from "./TaskModal";
 import dayjs from "dayjs";
@@ -28,6 +28,16 @@ export function TaskPool() {
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | undefined>(undefined);
   const [creationType, setCreationType] = React.useState<TaskType>("dev");
+  const [expandedSubTasks, setExpandedSubTasks] = React.useState<Set<number>>(new Set());
+
+  const toggleSubTaskPanel = (taskId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedSubTasks(prev => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -214,6 +224,27 @@ export function TaskPool() {
                      <p className="text-slate-800 text-[13.5px] font-medium leading-snug line-clamp-3 mb-3">
                        {task.description}
                      </p>
+
+                     {/* SubTask progress — only for dev tasks with subtasks */}
+                     {task.type === 'dev' && task.subTasks && task.subTasks.length > 0 && (() => {
+                       const total = task.subTasks.length;
+                       const done = task.subTasks.filter(s => s.done).length;
+                       const pct = Math.round((done / total) * 100);
+                       return (
+                         <div className="mb-1 space-y-1">
+                           <div className="flex items-center justify-between">
+                             <span className="text-[10px] text-slate-500 font-medium">任务进度</span>
+                             <span className="text-[10px] font-bold text-blue-600">{pct}%</span>
+                           </div>
+                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                             <div
+                               className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                               style={{ width: `${pct}%` }}
+                             />
+                           </div>
+                         </div>
+                       );
+                     })()}
                    </div>
 
                    <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -247,6 +278,21 @@ export function TaskPool() {
                      </div>
 
                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                        {/* SubTask list icon — only for dev tasks with subtasks */}
+                        {task.type === 'dev' && task.subTasks && task.subTasks.length > 0 && (
+                          <Tooltip title={expandedSubTasks.has(task.id) ? "收起子任务" : "展开子任务"}>
+                            <button
+                              onClick={(e) => toggleSubTaskPanel(task.id, e)}
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 shrink-0 transition-colors cursor-pointer ${
+                                expandedSubTasks.has(task.id)
+                                  ? 'bg-blue-600 text-white border-blue-700'
+                                  : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'
+                              }`}
+                            >
+                              <List size={10} />
+                            </button>
+                          </Tooltip>
+                        )}
                         <Tooltip title="编辑">
                           <button 
                             onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }} 
@@ -265,6 +311,42 @@ export function TaskPool() {
                         </Tooltip>
                      </div>
                    </div>
+
+                   {/* Inline subtask panel */}
+                   {task.type === 'dev' && task.subTasks && task.subTasks.length > 0 && expandedSubTasks.has(task.id) && (
+                     <div
+                       className="mt-2.5 pt-2.5 border-t border-blue-100 space-y-1"
+                       onClick={e => e.stopPropagation()}
+                     >
+                       {task.subTasks.map(st => (
+                         <div
+                           key={st.id}
+                           className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group/st"
+                           onClick={async () => {
+                             const updated = task.subTasks!.map(s =>
+                               s.id === st.id ? { ...s, done: !s.done } : s
+                             );
+                             await db.tasks.update(task.id, { subTasks: updated, updatedAt: Date.now() });
+                           }}
+                         >
+                           <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                             st.done ? 'bg-blue-500 border-blue-500' : 'border-slate-300 group-hover/st:border-blue-400'
+                           }`}>
+                             {st.done && (
+                               <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                                 <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                               </svg>
+                             )}
+                           </div>
+                           <span className={`text-[11px] flex-1 leading-snug transition-colors ${
+                             st.done ? 'line-through text-slate-400' : 'text-slate-600 group-hover/st:text-slate-800'
+                           }`}>
+                             {st.title}
+                           </span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
                  </div>
                )
              })}
