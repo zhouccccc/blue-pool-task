@@ -2,10 +2,10 @@ import * as React from "react";
 import { useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import db, { TaskType, Module, Task } from "../db";
-import { STATUS_MAP, TYPE_INFO } from "../constants";
+import { STATUS_MAP, TYPE_INFO, isDemoableStatus } from "../constants";
 // Removed Layout as it's now a parent component
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye, List } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye, List, MonitorPlay, MonitorOff, Archive } from "lucide-react";
 import { Button } from "./ui/button";
 import { TaskModal } from "./TaskModal";
 import { Modal } from "./ui/modal";
@@ -71,7 +71,12 @@ export function Board() {
     
     await db.transaction('rw', db.tasks, async () => {
       for (const t of updates) {
-        await db.tasks.update(t.id, { status: t.status, order: t.order, updatedAt: Date.now() });
+        const extra: any = { status: t.status, order: t.order, updatedAt: Date.now() };
+        // Auto-clear isDemoable when status changes
+        if (t.id === taskId && sourceStatus !== destStatus) {
+          extra.isDemoable = false;
+        }
+        await db.tasks.update(t.id, extra);
       }
     });
   };
@@ -92,6 +97,18 @@ export function Board() {
     }
   }
 
+  const handleReturnToPool = async (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await db.tasks.update(task.id, { week: undefined, isDemoable: false, updatedAt: Date.now() });
+    message.success("任务已放回任务池");
+    if (viewingTask?.id === task.id) setViewingTask(null);
+  };
+
+  const handleToggleDemoable = async (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await db.tasks.update(task.id, { isDemoable: !task.isDemoable, updatedAt: Date.now() });
+  };
+
   const handlePostpone = async (task: Task, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!task.week) return;
@@ -109,16 +126,22 @@ export function Board() {
     }
   };
 
-  // Pre-sort tasks by column
+  // Pre-sort tasks by column — demoable tasks float to top within their column
   const getTasksByStatus = (statusId: string) => {
-    return (tasks || []).filter(t => t.status === statusId).sort((a, b) => a.order - b.order);
+    return (tasks || [])
+      .filter(t => t.status === statusId)
+      .sort((a, b) => {
+        if (a.isDemoable && !b.isDemoable) return -1;
+        if (!a.isDemoable && b.isDemoable) return 1;
+        return a.order - b.order;
+      });
   };
 
   const COL_STYLES: Record<string, any> = {
     new: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100/50', border: 'border-slate-400', badgeBd: 'bg-slate-200', badgeTxt: 'text-slate-500' },
     in_progress: { dot: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50/30', border: 'border-blue-300', badgeBd: 'bg-blue-100', badgeTxt: 'text-blue-600' },
-    completed: { dot: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50/30', border: 'border-green-300', badgeBd: 'bg-green-100', badgeTxt: 'text-green-600', cardOpacity: 'opacity-75', textDecoration: 'line-through opacity-50' },
-    deployed: { dot: 'bg-indigo-600', text: 'text-indigo-600', bg: 'bg-indigo-50/30', border: 'border-indigo-300', badgeBd: 'bg-indigo-100', badgeTxt: 'text-indigo-600' },
+    completed: { dot: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50/30', border: 'border-green-300', badgeBd: 'bg-green-100', badgeTxt: 'text-green-600' },
+    deployed: { dot: 'bg-indigo-600', text: 'text-indigo-600', bg: 'bg-indigo-50/30', border: 'border-indigo-300', badgeBd: 'bg-indigo-100', badgeTxt: 'text-indigo-600', cardOpacity: 'opacity-70', textDecoration: 'line-through opacity-50' },
   };
 
   return (
@@ -179,6 +202,8 @@ export function Board() {
                       {getTasksByStatus(col.id).map((task, index) => {
                         const isDepMe = task.type === 'dep' && task.dependedName === '我';
                         const info = TYPE_INFO[task.type];
+                        const canDemo = isDemoableStatus(task.type, task.status);
+                        const isDemoable = !!task.isDemoable;
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
                             {(provided, snapshot) => (
@@ -187,13 +212,19 @@ export function Board() {
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                                 className={`p-3.5 rounded-xl shadow-sm border group relative transition-all duration-200 cursor-grab active:cursor-grabbing 
-                                  ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] !bg-white border-blue-200' 
+                                  ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] bg-white! border-blue-200' 
+                                  : isDemoable ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 shadow-amber-100 ring-1 ring-amber-200/60 hover:shadow-md hover:-translate-y-0.5'
                                   : isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:shadow-md hover:-translate-y-0.5' 
                                   : `${info.cardStyles || 'bg-white border-slate-200 hover:border-slate-300'} hover:-translate-y-0.5`} 
                                   ${colStyle.cardOpacity || ''}`}
                               >
                               <div className="flex justify-between items-start mb-2.5">
                                 <div className="flex items-center gap-1.5 overflow-hidden mr-2">
+                                  {isDemoable && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded border border-amber-200 flex items-center gap-0.5 shrink-0">
+                                      <MonitorPlay className="w-2.5 h-2.5" /> 可演示
+                                    </span>
+                                  )}
                                   {task.isPostponed && (
                                     <Tooltip title="上一周顺延下来的任务">
                                       <span className="text-[9px] px-1.5 py-0.5 bg-amber-50 text-amber-600 font-bold rounded border border-amber-100 flex items-center gap-0.5 shrink-0">
@@ -213,6 +244,24 @@ export function Board() {
                                 </div>
 
                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 -mr-1 -mt-1 bg-white/80 backdrop-blur pl-1 rounded-bl-lg">
+                                  {canDemo && (
+                                    <Tooltip title={isDemoable ? "取消可演示" : "标记为可演示"}>
+                                      <button
+                                        onClick={(e) => handleToggleDemoable(task, e)}
+                                        className={`p-1 rounded transition-colors ${isDemoable ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'}`}
+                                      >
+                                        {isDemoable ? <MonitorOff className="w-3.5 h-3.5" /> : <MonitorPlay className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </Tooltip>
+                                  )}
+                                  <Tooltip title="放回任务池">
+                                    <button
+                                      onClick={(e) => handleReturnToPool(task, e)}
+                                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                    >
+                                      <Archive className="w-3.5 h-3.5" />
+                                    </button>
+                                  </Tooltip>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setViewingTask(task); }} 
                                     className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"

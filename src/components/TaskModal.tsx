@@ -198,6 +198,11 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       taskData.subTasks = subTasks.length > 0 ? subTasks : undefined;
     }
 
+    // Auto-clear isDemoable if status changed
+    if (task && task.status !== status) {
+      taskData.isDemoable = false;
+    }
+
     if (task) {
       await db.tasks.update(task.id, taskData);
     } else {

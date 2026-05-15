@@ -11,13 +11,26 @@ export const STATUS_MAP = {
     { id: 'new', label: '新建' },
     { id: 'in_progress', label: '处理中' },
     { id: 'completed', label: '已解决' },
+    { id: 'deployed', label: '已部署' },
   ],
   bug: [
     { id: 'new', label: '新建' },
     { id: 'in_progress', label: '修复中' },
     { id: 'completed', label: '已解决' },
+    { id: 'deployed', label: '已部署' },
   ],
 };
+
+// Statuses that qualify a task to be marked as demo-ready
+const DEMOABLE_STATUSES: Record<TaskType, string[]> = {
+  dev: ['completed', 'deployed'],
+  dep: ['completed'],
+  bug: ['completed'],
+};
+
+export function isDemoableStatus(type: TaskType, status: string): boolean {
+  return DEMOABLE_STATUSES[type]?.includes(status) ?? false;
+}
 
 export const TYPE_INFO = {
   dev: { 
