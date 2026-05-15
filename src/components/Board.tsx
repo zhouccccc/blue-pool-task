@@ -141,7 +141,7 @@ export function Board() {
     new: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100/50', border: 'border-slate-400', badgeBd: 'bg-slate-200', badgeTxt: 'text-slate-500' },
     in_progress: { dot: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50/30', border: 'border-blue-300', badgeBd: 'bg-blue-100', badgeTxt: 'text-blue-600' },
     completed: { dot: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50/30', border: 'border-green-300', badgeBd: 'bg-green-100', badgeTxt: 'text-green-600' },
-    deployed: { dot: 'bg-indigo-600', text: 'text-indigo-600', bg: 'bg-indigo-50/30', border: 'border-indigo-300', badgeBd: 'bg-indigo-100', badgeTxt: 'text-indigo-600', cardOpacity: 'opacity-70', textDecoration: 'line-through opacity-50' },
+    deployed: { dot: 'bg-indigo-600', text: 'text-indigo-600', bg: 'bg-indigo-50/30', border: 'border-indigo-300', badgeBd: 'bg-indigo-100', badgeTxt: 'text-indigo-600' },
   };
 
   return (
@@ -204,6 +204,7 @@ export function Board() {
                         const info = TYPE_INFO[task.type];
                         const canDemo = isDemoableStatus(task.type, task.status);
                         const isDemoable = !!task.isDemoable;
+                        const canReturnToPool = task.status === 'new';
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
                             {(provided, snapshot) => (
@@ -254,14 +255,16 @@ export function Board() {
                                       </button>
                                     </Tooltip>
                                   )}
-                                  <Tooltip title="放回任务池">
-                                    <button
-                                      onClick={(e) => handleReturnToPool(task, e)}
-                                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
-                                    >
-                                      <Archive className="w-3.5 h-3.5" />
-                                    </button>
-                                  </Tooltip>
+                                  {canReturnToPool && (
+                                    <Tooltip title="放回任务池">
+                                      <button
+                                        onClick={(e) => handleReturnToPool(task, e)}
+                                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                      >
+                                        <Archive className="w-3.5 h-3.5" />
+                                      </button>
+                                    </Tooltip>
+                                  )}
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setViewingTask(task); }} 
                                     className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
