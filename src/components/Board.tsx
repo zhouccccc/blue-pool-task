@@ -213,6 +213,8 @@ export function Board() {
                         const isDemoable = !!task.isDemoable;
                         const isUrgent = !!task.isUrgent;
                         const canReturnToPool = task.status === 'new';
+                        const canPostpone = task.week && (task.status === 'new' || task.status === 'in_progress');
+                        const canEdit = task.status !== 'completed' && task.status !== 'deployed';
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
                             {(provided, snapshot) => (
@@ -274,6 +276,16 @@ export function Board() {
                                       </button>
                                     </Tooltip>
                                   )}
+                                  {canPostpone && (
+                                    <Tooltip title="顺延到下周">
+                                      <button
+                                        onClick={(e) => handlePostpone(task, e)}
+                                        className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                      >
+                                        <FastForward className="w-3.5 h-3.5" />
+                                      </button>
+                                    </Tooltip>
+                                  )}
                                   {canReturnToPool && (
                                     <Tooltip title="放回任务池">
                                       <button
@@ -291,13 +303,15 @@ export function Board() {
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); openEditTask(task); }} 
-                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                    title="编辑"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {canEdit && (
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); openEditTask(task); }} 
+                                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                      title="编辑"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} 
                                     className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
