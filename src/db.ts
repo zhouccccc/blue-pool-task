@@ -32,6 +32,8 @@ export interface Task {
   status: string;
   order: number;
   isPostponed?: boolean;
+  isDemoable?: boolean; // Marked as demo-ready (only when status qualifies)
+  isUrgent?: boolean;   // Priority: urgent tasks are surfaced first
   dependentName?: string;
   dependedName?: string;
   subTasks?: SubTask[]; // Only applicable for 'dev' type tasks
@@ -64,6 +66,20 @@ db.version(4).stores({
 
 // Version 5: add subTasks field support (stored as JSON in IndexedDB, no schema change needed)
 db.version(5).stores({
+  modules: '++id, name, order, createdAt',
+  members: '++id, name, createdAt',
+  tasks: '++id, type, week, moduleId, status, order, createdAt',
+});
+
+// Version 6: add isDemoable field support (no schema change needed, stored as boolean)
+db.version(6).stores({
+  modules: '++id, name, order, createdAt',
+  members: '++id, name, createdAt',
+  tasks: '++id, type, week, moduleId, status, order, createdAt',
+});
+
+// Version 7: add isUrgent field support (no schema change needed, stored as boolean)
+db.version(7).stores({
   modules: '++id, name, order, createdAt',
   members: '++id, name, createdAt',
   tasks: '++id, type, week, moduleId, status, order, createdAt',

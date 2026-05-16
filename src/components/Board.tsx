@@ -5,7 +5,7 @@ import db, { TaskType, Module, Task } from "../db";
 import { STATUS_MAP, TYPE_INFO, isDemoableStatus } from "../constants";
 // Removed Layout as it's now a parent component
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye, List, MonitorPlay, MonitorOff, Archive } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User, Clock, Eye, List, MonitorPlay, MonitorOff, Archive, Zap } from "lucide-react";
 import { Button } from "./ui/button";
 import { TaskModal } from "./TaskModal";
 import { Modal } from "./ui/modal";
@@ -126,13 +126,15 @@ export function Board() {
     }
   };
 
-  // Pre-sort tasks by column — demoable tasks float to top within their column
+  // Pre-sort tasks by column — demoable > urgent > normal, then by order
   const getTasksByStatus = (statusId: string) => {
     return (tasks || [])
       .filter(t => t.status === statusId)
       .sort((a, b) => {
         if (a.isDemoable && !b.isDemoable) return -1;
         if (!a.isDemoable && b.isDemoable) return 1;
+        if (a.isUrgent && !b.isUrgent) return -1;
+        if (!a.isUrgent && b.isUrgent) return 1;
         return a.order - b.order;
       });
   };
@@ -204,6 +206,7 @@ export function Board() {
                         const info = TYPE_INFO[task.type];
                         const canDemo = isDemoableStatus(task.type, task.status);
                         const isDemoable = !!task.isDemoable;
+                        const isUrgent = !!task.isUrgent;
                         const canReturnToPool = task.status === 'new';
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
@@ -215,6 +218,7 @@ export function Board() {
                                 className={`p-3.5 rounded-xl shadow-sm border group relative transition-all duration-200 cursor-grab active:cursor-grabbing 
                                   ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] bg-white! border-blue-200' 
                                   : isDemoable ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 shadow-amber-100 ring-1 ring-amber-200/60 hover:shadow-md hover:-translate-y-0.5'
+                                  : isUrgent ? 'bg-red-50/40 border-red-300 shadow-red-100/60 ring-1 ring-red-200/40 hover:shadow-md hover:-translate-y-0.5'
                                   : isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:shadow-md hover:-translate-y-0.5' 
                                   : `${info.cardStyles || 'bg-white border-slate-200 hover:border-slate-300'} hover:-translate-y-0.5`} 
                                   ${colStyle.cardOpacity || ''}`}
@@ -224,6 +228,11 @@ export function Board() {
                                   {isDemoable && (
                                     <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded border border-amber-200 flex items-center gap-0.5 shrink-0">
                                       <MonitorPlay className="w-2.5 h-2.5" /> 可演示
+                                    </span>
+                                  )}
+                                  {isUrgent && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white font-bold rounded border border-red-600 flex items-center gap-0.5 shrink-0">
+                                      <Zap className="w-2.5 h-2.5 fill-white" /> 紧急
                                     </span>
                                   )}
                                   {task.isPostponed && (

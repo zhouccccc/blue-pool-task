@@ -6,7 +6,7 @@ import { Select } from "antd";
 import { Button } from "./ui/button";
 import { STATUS_MAP } from "../constants";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Image as ImageIcon, X, Trash2, GripVertical } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, GripVertical, Zap } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -30,6 +30,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [dependedName, setDependedName] = React.useState("");
   const [subTasks, setSubTasks] = React.useState<SubTask[]>([]);
   const [newSubTaskTitle, setNewSubTaskTitle] = React.useState("");
+  const [isUrgent, setIsUrgent] = React.useState(false);
 
   const modules = useLiveQuery(async () => {
     const res = await db.modules.toArray();
@@ -56,6 +57,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setDependentName(task.dependentName || "");
         setDependedName(task.dependedName || "");
         setSubTasks(task.subTasks || []);
+        setIsUrgent(!!task.isUrgent);
       } else {
         setDescription("");
         setSource("");
@@ -66,6 +68,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setDependentName("");
         setDependedName("");
         setSubTasks([]);
+        setIsUrgent(false);
       }
       setNewSubTaskTitle("");
     }
@@ -176,6 +179,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       source,
       image,
       status,
+      isUrgent,
       updatedAt: Date.now()
     };
     
@@ -236,6 +240,36 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
             />
           </div>
         )}
+
+        {/* Priority toggle */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">优先级</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setIsUrgent(true)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                isUrgent
+                  ? 'bg-red-500 border-red-500 text-white shadow-sm shadow-red-200'
+                  : 'bg-white border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-500'
+              }`}
+            >
+              <Zap size={14} className={isUrgent ? 'fill-white' : ''} />
+              紧急
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsUrgent(false)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                !isUrgent
+                  ? 'bg-slate-700 border-slate-700 text-white shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+              }`}
+            >
+              不紧急
+            </button>
+          </div>
+        </div>
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-slate-700">描述 <span className="text-red-500">*</span></label>

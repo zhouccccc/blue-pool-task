@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router";
 
 import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
-import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List } from "lucide-react";
+import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List, Zap } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { TaskModal } from "./TaskModal";
 import dayjs from "dayjs";
@@ -59,11 +59,18 @@ export function TaskPool() {
 
 
   const filteredTasks = React.useMemo(() => {
-    return tasks.filter(t => {
-      const moduleMatch = filterModule === 'all' ? true : t.moduleId === filterModule;
-      const typeMatch = filterType === 'all' ? true : t.type === filterType;
-      return moduleMatch && typeMatch;
-    });
+    return tasks
+      .filter(t => {
+        const moduleMatch = filterModule === 'all' ? true : t.moduleId === filterModule;
+        const typeMatch = filterType === 'all' ? true : t.type === filterType;
+        return moduleMatch && typeMatch;
+      })
+      .sort((a, b) => {
+        // Urgent tasks float to top
+        if (a.isUrgent && !b.isUrgent) return -1;
+        if (!a.isUrgent && b.isUrgent) return 1;
+        return 0;
+      });
   }, [tasks, filterModule, filterType]);
 
   const handleBatchPromote = async () => {
@@ -189,13 +196,15 @@ export function TaskPool() {
                const info = TYPE_INFO[task.type];
                const moduleName = modules.find(m => m.id === task.moduleId)?.name;
                const isDepMe = task.type === 'dep' && task.dependedName === '我';
+               const isUrgent = !!task.isUrgent;
 
                return (
                  <div 
                    key={task.id}
                    onClick={() => toggleSelection(task.id)}
                    className={`p-4 rounded-2xl border-2 relative flex flex-col justify-between min-h-[160px] shadow-sm transition-all duration-200 cursor-pointer select-none
-                     ${isSelected ? 'bg-blue-50/20 border-blue-500 ring-4 ring-blue-500/10 scale-[0.99]' : 
+                     ${isSelected ? 'bg-blue-50/20 border-blue-500 ring-4 ring-blue-500/10 scale-[0.99]' :
+                       isUrgent ? 'bg-red-50/40 border-red-300 shadow-red-100/60 hover:border-red-400 hover:shadow-md hover:-translate-y-0.5' :
                        isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5' : 
                        `${info.cardStyles || 'bg-white border-slate-200 hover:shadow-md hover:border-slate-300'} hover:-translate-y-0.5`}
                    `}
@@ -210,6 +219,11 @@ export function TaskPool() {
                           />
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {isUrgent && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white font-bold rounded border border-red-600 flex items-center gap-0.5 whitespace-nowrap">
+                              <Zap size={9} className="fill-white" /> 紧急
+                            </span>
+                          )}
                           {moduleName && (
                             <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
                               {moduleName}
