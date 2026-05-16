@@ -4,7 +4,7 @@ import db, { Task, TaskType } from "../db";
 import { useSearchParams } from "react-router";
 // Removed Layout as handled at root
 
-import { Button, Modal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
+import { Button, Modal as AntModal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { TYPE_INFO } from "../constants";
 import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List, Zap } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
@@ -317,7 +317,17 @@ export function TaskPool() {
                         </Tooltip>
                         <Tooltip title="删除">
                           <button 
-                            onClick={async () => { if(window.confirm("确认删除？")) await db.tasks.delete(task.id); }} 
+                            onClick={() => {
+                              AntModal.confirm({
+                                title: '删除任务',
+                                content: '确定要删除这个任务吗？此操作不可撤销。',
+                                okText: '确认删除',
+                                okButtonProps: { danger: true },
+                                cancelText: '取消',
+                                centered: true,
+                                onOk: async () => { await db.tasks.delete(task.id); },
+                              });
+                            }}
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <Trash2 size={14} />
@@ -386,7 +396,7 @@ export function TaskPool() {
       </div>
 
       {/* Modal for task assignment */}
-      <Modal
+      <AntModal
         title={
           <div className="flex items-center gap-2 text-slate-800 pb-1 border-b">
              <CalendarDays className="w-5 h-5 text-blue-600" />
@@ -410,7 +420,7 @@ export function TaskPool() {
              <WeekPicker value={targetWeek} onChange={setTargetWeek} />
           </div>
         </div>
-      </Modal>
+      </AntModal>
 
       <TaskModal 
         isOpen={isTaskModalOpen} 

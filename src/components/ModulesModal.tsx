@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Trash2, Edit2, Plus, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { Modal as AntModal } from "antd";
 
 export function ModulesModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [newModuleName, setNewModuleName] = React.useState("");
@@ -65,15 +66,25 @@ export function ModulesModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
   };
 
   const handleDelete = async (id: number) => {
-    // Check if module is used
     const inUse = await db.tasks.where({ moduleId: id }).count();
     if (inUse > 0) {
-      alert(`无法删除：有 ${inUse} 个任务正在使用此模块。`);
+      AntModal.warning({
+        title: '无法删除',
+        content: `有 ${inUse} 个任务正在使用此模块，请先移除关联任务后再删除。`,
+        okText: '知道了',
+        centered: true,
+      });
       return;
     }
-    if (window.confirm("确定要删除此模块吗？")) {
-      await db.modules.delete(id);
-    }
+    AntModal.confirm({
+      title: '删除模块',
+      content: '确定要删除此模块吗？',
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      centered: true,
+      onOk: async () => { await db.modules.delete(id); },
+    });
   };
 
   const handleSaveEdit = async () => {

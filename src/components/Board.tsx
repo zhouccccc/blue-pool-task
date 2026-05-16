@@ -9,7 +9,7 @@ import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User
 import { Button } from "./ui/button";
 import { TaskModal } from "./TaskModal";
 import { Modal } from "./ui/modal";
-import { Image, Select, Tooltip, message } from "antd";
+import { Image, Select, Tooltip, message, Modal as AntModal } from "antd";
 import dayjs from "dayjs";
 import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange } from "../lib/utils";
 
@@ -92,16 +92,31 @@ export function Board() {
   };
 
   const deleteTask = async (id: number) => {
-    if (window.confirm("确定要删除这个任务吗？")) {
-      await db.tasks.delete(id);
-    }
+    AntModal.confirm({
+      title: '删除任务',
+      content: '确定要删除这个任务吗？此操作不可撤销。',
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      centered: true,
+      onOk: async () => { await db.tasks.delete(id); },
+    });
   }
 
   const handleReturnToPool = async (task: Task, e: React.MouseEvent) => {
     e.stopPropagation();
-    await db.tasks.update(task.id, { week: undefined, isDemoable: false, updatedAt: Date.now() });
-    message.success("任务已放回任务池");
-    if (viewingTask?.id === task.id) setViewingTask(null);
+    AntModal.confirm({
+      title: '放回任务池',
+      content: '确定要将该任务放回任务池吗？周数信息将被清除。',
+      okText: '确认',
+      cancelText: '取消',
+      centered: true,
+      onOk: async () => {
+        await db.tasks.update(task.id, { week: undefined, isDemoable: false, updatedAt: Date.now() });
+        message.success("任务已放回任务池");
+        if (viewingTask?.id === task.id) setViewingTask(null);
+      },
+    });
   };
 
   const handleToggleDemoable = async (task: Task, e: React.MouseEvent) => {
@@ -118,17 +133,18 @@ export function Board() {
       return;
     }
     const nextWeek = getNextWeekStr(task.week);
-    if (window.confirm(`确定要将该任务顺延至下一周吗？`)) {
-      await db.tasks.update(task.id, { 
-        week: nextWeek, 
-        isPostponed: true, 
-        updatedAt: Date.now() 
-      });
-      message.success("任务已成功顺延至下周");
-      if (viewingTask?.id === task.id) {
-         setViewingTask(null);
-      }
-    }
+    AntModal.confirm({
+      title: '顺延到下周',
+      content: '确定要将该任务顺延至下一周吗？',
+      okText: '确认顺延',
+      cancelText: '取消',
+      centered: true,
+      onOk: async () => {
+        await db.tasks.update(task.id, { week: nextWeek, isPostponed: true, updatedAt: Date.now() });
+        message.success("任务已成功顺延至下周");
+        if (viewingTask?.id === task.id) setViewingTask(null);
+      },
+    });
   };
 
   // Pre-sort tasks by column — demoable > urgent > normal, then by order

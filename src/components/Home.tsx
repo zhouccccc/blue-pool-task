@@ -4,7 +4,7 @@ import db from "../db";
 import { Link } from "react-router";
 // Removed Layout as it is now handled at the root layout route
 import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users, Download, Upload, ChevronDown, FileJson } from "lucide-react";
-import { Dropdown, message, type MenuProps } from "antd";
+import { Dropdown, message, Modal as AntModal, type MenuProps } from "antd";
 import { TYPE_INFO } from "../constants";
 import { getCurrentWeekStr } from "../lib/utils";
 import { Button } from "./ui/button";
@@ -76,7 +76,18 @@ export function Home() {
              throw new Error("无效的备份文件格式，未找到核心数据表");
           }
           
-          if (!window.confirm("⚠️ 警告：导入操作将彻底清空当前的所有本地数据（任务、模块、人员），并以备份文件内容完全覆盖。此操作不可撤销，确定要执行吗？")) {
+          if (!await new Promise<boolean>(resolve => {
+            AntModal.confirm({
+              title: '⚠️ 危险操作',
+              content: '导入操作将彻底清空当前的所有本地数据（任务、模块、人员），并以备份文件内容完全覆盖。此操作不可撤销，确定要执行吗？',
+              okText: '确认覆盖',
+              okButtonProps: { danger: true },
+              cancelText: '取消',
+              centered: true,
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          })) {
             return;
           }
           
