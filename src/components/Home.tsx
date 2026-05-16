@@ -4,7 +4,8 @@ import db from "../db";
 import { Link } from "react-router";
 // Removed Layout as it is now handled at the root layout route
 import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users, Download, Upload, ChevronDown, FileJson } from "lucide-react";
-import { Dropdown, message, Modal as AntModal, type MenuProps } from "antd";
+import { Dropdown, message, type MenuProps } from "antd";
+import { confirm } from "./ui/confirm";
 import { TYPE_INFO } from "../constants";
 import { getCurrentWeekStr } from "../lib/utils";
 import { Button } from "./ui/button";
@@ -75,34 +76,27 @@ export function Home() {
           if (!backup.tasks || !backup.modules || !backup.members) {
              throw new Error("无效的备份文件格式，未找到核心数据表");
           }
-          
-          if (!await new Promise<boolean>(resolve => {
-            AntModal.confirm({
-              title: '⚠️ 危险操作',
-              content: '导入操作将彻底清空当前的所有本地数据（任务、模块、人员），并以备份文件内容完全覆盖。此操作不可撤销，确定要执行吗？',
-              okText: '确认覆盖',
-              okButtonProps: { danger: true },
-              cancelText: '取消',
-              centered: true,
-              onOk: () => resolve(true),
-              onCancel: () => resolve(false),
+
+          const doImport = async () => {
+            await db.transaction('rw', [db.tasks, db.modules, db.members], async () => {
+               await db.tasks.clear();
+               await db.modules.clear();
+               await db.members.clear();
+               await db.tasks.bulkAdd(backup.tasks);
+               await db.modules.bulkAdd(backup.modules);
+               await db.members.bulkAdd(backup.members);
             });
-          })) {
-            return;
-          }
-          
-          await db.transaction('rw', [db.tasks, db.modules, db.members], async () => {
-             await db.tasks.clear();
-             await db.modules.clear();
-             await db.members.clear();
-             
-             await db.tasks.bulkAdd(backup.tasks);
-             await db.modules.bulkAdd(backup.modules);
-             await db.members.bulkAdd(backup.members);
+            message.success("全量数据导入成功！页面即将自动重载。");
+            setTimeout(() => window.location.reload(), 1500);
+          };
+
+          confirm.danger({
+            title: '危险操作',
+            content: '导入操作将彻底清空当前的所有本地数据（任务、模块、人员），并以备份文件内容完全覆盖。此操作不可撤销，确定要执行吗？',
+            okText: '确认覆盖',
+            cancelText: '取消',
+            onOk: doImport,
           });
-          
-          message.success("全量数据导入成功！页面即将自动重载。");
-          setTimeout(() => window.location.reload(), 1500);
         } catch (err: any) {
           message.error("导入解析失败，请确保文件未被破坏：" + err.message);
         }

@@ -9,7 +9,8 @@ import { Plus, Edit2, Trash2, Image as ImageIcon, FastForward, AlertCircle, User
 import { Button } from "./ui/button";
 import { TaskModal } from "./TaskModal";
 import { Modal } from "./ui/modal";
-import { Image, Select, Tooltip, message, Modal as AntModal } from "antd";
+import { Image, Select, Tooltip, message } from "antd";
+import { confirm } from "./ui/confirm";
 import dayjs from "dayjs";
 import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange } from "../lib/utils";
 
@@ -60,25 +61,88 @@ export function Board() {
     
     if (sourceStatus === destStatus && result.source.index === result.destination.index) return;
 
+    // ── Status transition guard ──────────────────────────────────────────────
+    // Allowed forward transitions only. No going back to earlier stages.
+    const ALLOWED: Record<string, string[]> = {
+      new:         ['in_progress'],
+      in_progress: ['completed'],
+      completed:   ['deployed'],
+      deployed:    [],           // terminal — no further moves
+    };
+    if (!(ALLOWED[sourceStatus] ?? []).includes(destStatus)) {
+      message.warning('不支持该状态流转');
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    const movedTask = tasks.find(t => t.id === taskId);
+    if (!movedTask) return;
+
     const sourceTasks = tasks.filter(t => t.status === sourceStatus).sort((a,b) => a.order - b.order);
-    const destTasks = sourceStatus === destStatus ? sourceTasks : tasks.filter(t => t.status === destStatus).sort((a,b) => a.order - b.order);
-    
-    const [movedTask] = sourceTasks.splice(result.source.index, 1);
-    movedTask.status = destStatus;
-    destTasks.splice(result.destination.index, 0, movedTask);
-    
-    const updates = destTasks.map((t, index) => ({ ...t, order: index }));
-    
-    await db.transaction('rw', db.tasks, async () => {
-      for (const t of updates) {
-        const extra: any = { status: t.status, order: t.order, updatedAt: Date.now() };
-        // Auto-clear isDemoable when status changes
-        if (t.id === taskId && sourceStatus !== destStatus) {
-          extra.isDemoable = false;
+    const destTasks   = tasks.filter(t => t.status === destStatus).sort((a,b) => a.order - b.order);
+
+    // Build the new dest order (optimistic)
+    const srcCopy  = sourceTasks.filter(t => t.id !== taskId);
+    const destCopy = [...destTasks];
+    destCopy.splice(result.destination.index, 0, movedTask);
+
+    const destUpdates = destCopy.map((t, i) => ({ id: t.id, status: destStatus, order: i }));
+    const srcUpdates  = srcCopy.map((t, i)  => ({ id: t.id, status: sourceStatus, order: i }));
+
+    // Helper: write a set of updates to DB
+    const commitUpdates = async (rows: { id: number; status: string; order: number }[], extraForMoved?: Record<string, any>) => {
+      await db.transaction('rw', db.tasks, async () => {
+        for (const row of rows) {
+          const patch: any = { status: row.status, order: row.order, updatedAt: Date.now() };
+          if (row.id === taskId) {
+            patch.isDemoable = false;
+            if (extraForMoved) Object.assign(patch, extraForMoved);
+          }
+          await db.tasks.update(row.id, patch);
         }
-        await db.tasks.update(t.id, extra);
-      }
-    });
+      });
+    };
+
+    // Helper: revert — write the moved task back to its original position
+    const revert = async () => {
+      await db.tasks.update(taskId, {
+        status: sourceStatus,
+        order: movedTask.order,
+        updatedAt: Date.now(),
+      });
+    };
+
+    // Check: dev task moved to completed with incomplete subtasks
+    const hasIncomplete =
+      destStatus === 'completed' &&
+      movedTask.type === 'dev' &&
+      movedTask.subTasks &&
+      movedTask.subTasks.length > 0 &&
+      movedTask.subTasks.some(s => !s.done);
+
+    if (hasIncomplete) {
+      const incompleteCount = movedTask.subTasks!.filter(s => !s.done).length;
+      // Optimistically write the move first so the card appears in the dest column
+      await commitUpdates([...destUpdates, ...srcUpdates]);
+
+      confirm({
+        title: '自动完成子任务',
+        content: `当前任务还有 ${incompleteCount} 个子任务未完成，即将自动完成。是否确认？`,
+        okText: '确认',
+        cancelText: '取消',
+        onOk: async () => {
+          await db.tasks.update(taskId, {
+            subTasks: movedTask.subTasks!.map(s => ({ ...s, done: true })),
+            updatedAt: Date.now(),
+          });
+        },
+        onCancel: async () => {
+          await revert();
+        },
+      });
+    } else {
+      await commitUpdates([...destUpdates, ...srcUpdates]);
+    }
   };
 
   const openNewTask = () => {
@@ -92,25 +156,22 @@ export function Board() {
   };
 
   const deleteTask = async (id: number) => {
-    AntModal.confirm({
+    confirm.danger({
       title: '删除任务',
       content: '确定要删除这个任务吗？此操作不可撤销。',
       okText: '确认删除',
-      okButtonProps: { danger: true },
       cancelText: '取消',
-      centered: true,
       onOk: async () => { await db.tasks.delete(id); },
     });
   }
 
   const handleReturnToPool = async (task: Task, e: React.MouseEvent) => {
     e.stopPropagation();
-    AntModal.confirm({
+    confirm({
       title: '放回任务池',
       content: '确定要将该任务放回任务池吗？周数信息将被清除。',
       okText: '确认',
       cancelText: '取消',
-      centered: true,
       onOk: async () => {
         await db.tasks.update(task.id, { week: undefined, isDemoable: false, updatedAt: Date.now() });
         message.success("任务已放回任务池");
@@ -133,12 +194,11 @@ export function Board() {
       return;
     }
     const nextWeek = getNextWeekStr(task.week);
-    AntModal.confirm({
+    confirm({
       title: '顺延到下周',
       content: '确定要将该任务顺延至下一周吗？',
       okText: '确认顺延',
       cancelText: '取消',
-      centered: true,
       onOk: async () => {
         await db.tasks.update(task.id, { week: nextWeek, isPostponed: true, updatedAt: Date.now() });
         message.success("任务已成功顺延至下周");
@@ -429,7 +489,14 @@ export function Board() {
                                         const updated = task.subTasks!.map(s =>
                                           s.id === st.id ? { ...s, done: !s.done } : s
                                         );
-                                        await db.tasks.update(task.id, { subTasks: updated, updatedAt: Date.now() });
+                                        const allDone = updated.every(s => s.done);
+                                        const patch: any = { subTasks: updated, updatedAt: Date.now() };
+                                        // Auto-move to completed when all subtasks are done
+                                        if (allDone && task.status !== 'completed') {
+                                          patch.status = 'completed';
+                                          patch.isDemoable = false;
+                                        }
+                                        await db.tasks.update(task.id, patch);
                                       }}
                                     >
                                       <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${

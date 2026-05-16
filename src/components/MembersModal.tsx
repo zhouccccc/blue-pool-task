@@ -5,7 +5,7 @@ import { Input } from "./ui/forms";
 import { Button } from "./ui/button";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Trash2, Edit2, Plus, Users } from "lucide-react";
-import { Modal as AntModal } from "antd";
+import { confirm } from "./ui/confirm";
 
 export function MembersModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [newMemberName, setNewMemberName] = React.useState("");
@@ -36,13 +36,11 @@ export function MembersModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
   };
 
   const handleDelete = async (id: number) => {
-    AntModal.confirm({
+    confirm.danger({
       title: '删除人员',
       content: '确定要删除该人员吗？这不会删除历史任务中的记录，但该人将无法在下拉列表中选择。',
       okText: '确认删除',
-      okButtonProps: { danger: true },
       cancelText: '取消',
-      centered: true,
       onOk: async () => { await db.members.delete(id); },
     });
   };

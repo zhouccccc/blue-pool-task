@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router";
 // Removed Layout as handled at root
 
 import { Button, Modal as AntModal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
+import { confirm } from "./ui/confirm";
 import { TYPE_INFO } from "../constants";
 import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List, Zap } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
@@ -318,13 +319,11 @@ export function TaskPool() {
                         <Tooltip title="删除">
                           <button 
                             onClick={() => {
-                              AntModal.confirm({
+                              confirm.danger({
                                 title: '删除任务',
                                 content: '确定要删除这个任务吗？此操作不可撤销。',
                                 okText: '确认删除',
-                                okButtonProps: { danger: true },
                                 cancelText: '取消',
-                                centered: true,
                                 onOk: async () => { await db.tasks.delete(task.id); },
                               });
                             }}
@@ -350,7 +349,14 @@ export function TaskPool() {
                              const updated = task.subTasks!.map(s =>
                                s.id === st.id ? { ...s, done: !s.done } : s
                              );
-                             await db.tasks.update(task.id, { subTasks: updated, updatedAt: Date.now() });
+                             const allDone = updated.every(s => s.done);
+                             const patch: any = { subTasks: updated, updatedAt: Date.now() };
+                             // Auto-move to completed when all subtasks are done
+                             if (allDone && task.status !== 'completed') {
+                               patch.status = 'completed';
+                               patch.isDemoable = false;
+                             }
+                             await db.tasks.update(task.id, patch);
                            }}
                          >
                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
