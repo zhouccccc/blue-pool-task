@@ -112,6 +112,11 @@ export function Board() {
   const handlePostpone = async (task: Task, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!task.week) return;
+    // Only new and in_progress tasks can be postponed
+    if (task.status !== 'new' && task.status !== 'in_progress') {
+      message.warning("只有新建或开发中的任务才能顺延");
+      return;
+    }
     const nextWeek = getNextWeekStr(task.week);
     if (window.confirm(`确定要将该任务顺延至下一周吗？`)) {
       await db.tasks.update(task.id, { 
@@ -121,7 +126,7 @@ export function Board() {
       });
       message.success("任务已成功顺延至下周");
       if (viewingTask?.id === task.id) {
-         setViewingTask(null); // Close detail view after action
+         setViewingTask(null);
       }
     }
   };
@@ -217,22 +222,27 @@ export function Board() {
                                 {...provided.dragHandleProps}
                                 className={`p-3.5 rounded-xl shadow-sm border group relative transition-all duration-200 cursor-grab active:cursor-grabbing 
                                   ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500/30 rotate-1 z-50 scale-[1.01] bg-white! border-blue-200' 
-                                  : isDemoable ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 shadow-amber-100 ring-1 ring-amber-200/60 hover:shadow-md hover:-translate-y-0.5'
-                                  : isUrgent ? 'bg-red-50/40 border-red-300 shadow-red-100/60 ring-1 ring-red-200/40 hover:shadow-md hover:-translate-y-0.5'
-                                  : isDepMe ? 'bg-white border-amber-400 shadow-amber-100/50 hover:shadow-md hover:-translate-y-0.5' 
+                                  : (isUrgent || isDepMe) ? 'bg-red-50/40 border-red-300 shadow-red-100/60 ring-1 ring-red-200/40 hover:shadow-md hover:-translate-y-0.5'
                                   : `${info.cardStyles || 'bg-white border-slate-200 hover:border-slate-300'} hover:-translate-y-0.5`} 
                                   ${colStyle.cardOpacity || ''}`}
                               >
                               <div className="flex justify-between items-start mb-2.5">
                                 <div className="flex items-center gap-1.5 overflow-hidden mr-2">
                                   {isDemoable && (
-                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded border border-amber-200 flex items-center gap-0.5 shrink-0">
-                                      <MonitorPlay className="w-2.5 h-2.5" /> 可演示
-                                    </span>
+                                    <Tooltip title="已标记为可演示">
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-white text-amber-600 font-bold rounded border border-amber-200 flex items-center gap-0.5 shrink-0">
+                                        <MonitorPlay className="w-2.5 h-2.5" /> 可演示
+                                      </span>
+                                    </Tooltip>
                                   )}
                                   {isUrgent && (
                                     <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white font-bold rounded border border-red-600 flex items-center gap-0.5 shrink-0">
                                       <Zap className="w-2.5 h-2.5 fill-white" /> 紧急
+                                    </span>
+                                  )}
+                                  {isDepMe && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white font-bold rounded border border-red-600 flex items-center gap-0.5 shrink-0">
+                                      <User className="w-2.5 h-2.5" /> 依赖我
                                     </span>
                                   )}
                                   {task.isPostponed && (
@@ -328,18 +338,12 @@ export function Board() {
                                     {(() => {
                                       const personName = task.type === 'dep' ? task.dependedName : task.source;
                                       const personLabel = task.type === 'dep' ? '负责人' : '来源';
-                                      const isMe = personName === '我';
                                       if (!personName) return null;
-
-                                      // Highlight badge ONLY if it matches the strict card-highlight condition (e.g. Depended on Me)
-                                      const isHighlighted = isDepMe && isMe;
 
                                       return (
                                         <Tooltip title={`${personLabel}: ${personName}`}>
-                                          <div className={`text-[10px] font-bold border rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0 ${
-                                            isHighlighted ? 'bg-amber-500 text-white border-amber-600' : 'bg-indigo-100 text-indigo-700 border-indigo-200/80'
-                                          }`}>
-                                            <User size={11} className={isHighlighted ? 'text-amber-50' : 'opacity-70'} />
+                                          <div className="text-[10px] font-bold border rounded px-1.5 py-0.5 flex items-center gap-1 shadow-sm shrink-0 bg-indigo-100 text-indigo-700 border-indigo-200/80">
+                                            <User size={11} className="opacity-70" />
                                             <span className="font-bold">{personName}</span>
                                           </div>
                                         </Tooltip>
@@ -438,7 +442,7 @@ export function Board() {
         title="任务详情"
         footer={
           <div className="flex justify-between w-full items-center">
-            {viewingTask?.week ? (
+            {viewingTask?.week && (viewingTask.status === 'new' || viewingTask.status === 'in_progress') ? (
               <Button 
                 variant="outline" 
                 className="text-amber-600 border-amber-200 hover:bg-amber-50 font-semibold"
