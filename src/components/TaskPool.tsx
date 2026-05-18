@@ -7,10 +7,11 @@ import { useSearchParams } from "react-router";
 import { Button, Modal as AntModal, message, Tooltip, Checkbox, Tag, Dropdown, MenuProps, Select } from "antd";
 import { confirm } from "./ui/confirm";
 import { TYPE_INFO } from "../constants";
-import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List, Zap } from "lucide-react";
+import { Archive, ArrowRightCircle, Trash2, Edit3, CalendarDays, Plus, Image as ImageIcon, MoreVertical, CheckSquare, User, Clock, FolderKanban, ListFilter, List, Zap, SendHorizonal } from "lucide-react";
 import { WeekPicker } from "./ui/WeekPicker";
 import { TaskModal } from "./TaskModal";
 import dayjs from "dayjs";
+import { getCurrentWeekStr } from "../lib/utils";
 
 export function TaskPool() {
   const tasks = useLiveQuery(async () => {
@@ -308,6 +309,22 @@ export function TaskPool() {
                             </button>
                           </Tooltip>
                         )}
+                        <Tooltip title="转入本周">
+                          <button
+                            onClick={async () => {
+                              const currentWeek = getCurrentWeekStr();
+                              await db.tasks.update(task.id, {
+                                week: currentWeek,
+                                isUrgent: false,
+                                updatedAt: Date.now(),
+                              });
+                              message.success("已转入本周任务");
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          >
+                            <SendHorizonal size={14} />
+                          </button>
+                        </Tooltip>
                         <Tooltip title="编辑">
                           <button 
                             onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }} 
