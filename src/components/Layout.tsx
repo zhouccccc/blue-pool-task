@@ -14,9 +14,9 @@ export function Layout() {
   const targetWeek = week || getCurrentWeekStr();
   
   const counts = {
-    dev: tasks.filter(t => t.type === 'dev' && t.week === targetWeek && t.status !== 'completed' && t.status !== 'deployed').length,
-    dep: tasks.filter(t => t.type === 'dep' && t.week === targetWeek && t.status !== 'completed').length,
-    bug: tasks.filter(t => t.type === 'bug' && t.week === targetWeek && t.status !== 'completed').length,
+    dev: tasks.filter(t => t.type === 'dev' && t.week === targetWeek && (t.status === 'new' || t.status === 'in_progress')).length,
+    dep: tasks.filter(t => t.type === 'dep' && t.week === targetWeek && (t.status === 'new' || t.status === 'in_progress')).length,
+    bug: tasks.filter(t => t.type === 'bug' && t.week === targetWeek && (t.status === 'new' || t.status === 'in_progress')).length,
   };
 
   const bgColors = {
