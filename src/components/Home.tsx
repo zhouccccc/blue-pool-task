@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "../db";
 import { Link } from "react-router";
 // Removed Layout as it is now handled at the root layout route
-import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users, Download, Upload, ChevronDown, FileJson } from "lucide-react";
+import { Layers, Puzzle, Bug, Activity, Database, Archive, Briefcase, Users, Download, Upload, ChevronDown, FileJson, CalendarCheck } from "lucide-react";
 import { Dropdown, message, type MenuProps } from "antd";
 import { confirm } from "./ui/confirm";
 import { TYPE_INFO } from "../constants";
@@ -11,12 +11,14 @@ import { getCurrentWeekStr } from "../lib/utils";
 import { Button } from "./ui/button";
 import { ModulesModal } from "./ModulesModal";
 import { MembersModal } from "./MembersModal";
+import { WeekPlanModal } from "./WeekPlanModal";
 
 export function Home() {
   const currentWeek = getCurrentWeekStr();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) || [];
   const [isModulesModalOpen, setIsModulesModalOpen] = React.useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = React.useState(false);
+  const [isWeekPlanOpen, setIsWeekPlanOpen] = React.useState(false);
 
   const stats = {
     dev: { 
@@ -152,6 +154,10 @@ export function Home() {
               </Button>
             </Dropdown>
             <div className="w-px h-8 bg-slate-200 mx-1 invisible sm:visible"></div>
+            <Button variant="outline" className="text-emerald-600 border-emerald-200 bg-white shadow-sm hover:bg-emerald-50" onClick={() => setIsWeekPlanOpen(true)}>
+              <CalendarCheck className="w-4 h-4 mr-2" />
+              周计划
+            </Button>
             <Button variant="outline" className="text-indigo-600 border-indigo-200 bg-white shadow-sm hover:bg-indigo-50" onClick={() => setIsMembersModalOpen(true)}>
               <Users className="w-4 h-4 mr-2" />
               人员管理
@@ -210,6 +216,7 @@ export function Home() {
       </div>
       <ModulesModal isOpen={isModulesModalOpen} onClose={() => setIsModulesModalOpen(false)} />
       <MembersModal isOpen={isMembersModalOpen} onClose={() => setIsMembersModalOpen(false)} />
+      <WeekPlanModal isOpen={isWeekPlanOpen} onClose={() => setIsWeekPlanOpen(false)} week={currentWeek} />
     </>
 
   );
