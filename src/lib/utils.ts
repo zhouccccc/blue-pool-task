@@ -65,3 +65,16 @@ export function getWeekDateRange(weekStr: string | number | undefined) {
   const d = dayjs().year(year).isoWeek(week).startOf('isoWeek');
   return `${d.format('MM/DD')} - ${d.endOf('isoWeek').format('MM/DD')}`;
 }
+
+/**
+ * Returns true if today is within the last 3 days of the given ISO week
+ * (i.e. Thursday, Friday, or Saturday — isoWeekday 4/5/6 — or Sunday=7).
+ * ISO week ends on Sunday, so "last 3 days" = Fri(5), Sat(6), Sun(7).
+ */
+export function isInLastThreeDaysOfWeek(weekStr: string): boolean {
+  if (!weekStr || !weekStr.includes('-W')) return false;
+  const currentWeek = getCurrentWeekStr();
+  if (weekStr !== currentWeek) return false; // only relevant for current week
+  const dayOfWeek = dayjs().isoWeekday(); // 1=Mon … 7=Sun
+  return dayOfWeek >= 5; // Fri, Sat, Sun
+}

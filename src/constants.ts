@@ -24,8 +24,8 @@ export const STATUS_MAP = {
 // Statuses that qualify a task to be marked as demo-ready
 const DEMOABLE_STATUSES: Record<TaskType, string[]> = {
   dev: ['completed', 'deployed'],
-  dep: ['completed'],
-  bug: ['completed'],
+  dep: ['completed', 'deployed'],
+  bug: ['completed', 'deployed'],
 };
 
 export function isDemoableStatus(type: TaskType, status: string): boolean {

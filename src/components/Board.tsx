@@ -12,7 +12,7 @@ import { Modal } from "./ui/modal";
 import { Image, Select, Tooltip, message } from "antd";
 import { confirm } from "./ui/confirm";
 import dayjs from "dayjs";
-import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange } from "../lib/utils";
+import { formatWeekRange, getCurrentWeekStr, getNextWeekStr, getWeekOptions, getWeekDateRange, isInLastThreeDaysOfWeek } from "../lib/utils";
 
 export function Board() {
   const { type, week } = useParams<{ type: TaskType; week?: string }>();
@@ -289,7 +289,7 @@ export function Board() {
                         const isDemoable = !!task.isDemoable;
                         const isUrgent = !!task.isUrgent;
                         const canReturnToPool = task.status === 'new';
-                        const canPostpone = task.week && (task.status === 'new' || task.status === 'in_progress');
+                        const canPostpone = task.week && (task.status === 'new' || task.status === 'in_progress') && isInLastThreeDaysOfWeek(task.week);
                         const canEdit = task.status !== 'completed' && task.status !== 'deployed';
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
@@ -539,7 +539,7 @@ export function Board() {
         title="任务详情"
         footer={
           <div className="flex justify-between w-full items-center">
-            {viewingTask?.week && (viewingTask.status === 'new' || viewingTask.status === 'in_progress') ? (
+            {viewingTask?.week && (viewingTask.status === 'new' || viewingTask.status === 'in_progress') && isInLastThreeDaysOfWeek(viewingTask.week) ? (
               <Button 
                 variant="outline" 
                 className="text-amber-600 border-amber-200 hover:bg-amber-50 font-semibold"
