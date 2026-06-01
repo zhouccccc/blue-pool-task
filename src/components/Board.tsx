@@ -62,11 +62,12 @@ export function Board() {
     if (sourceStatus === destStatus && result.source.index === result.destination.index) return;
 
     // ── Status transition guard ──────────────────────────────────────────────
-    // Same-column reorder is always allowed. Cross-column only allows forward.
+    // Same-column reorder is always allowed.
+    // Cross-column: forward only, plus completed → in_progress is allowed.
     const ALLOWED: Record<string, string[]> = {
       new:         ['in_progress'],
       in_progress: ['completed'],
-      completed:   ['deployed'],
+      completed:   ['deployed', 'in_progress'],
       deployed:    [],
     };
     if (sourceStatus !== destStatus && !(ALLOWED[sourceStatus] ?? []).includes(destStatus)) {
@@ -77,18 +78,29 @@ export function Board() {
     const movedTask = tasks.find(t => t.id === taskId);
     if (!movedTask) return;
 
-    const sourceTasks = tasks.filter(t => t.status === sourceStatus).sort((a,b) => a.order - b.order);
-    const destTasks   = tasks.filter(t => t.status === destStatus).sort((a,b) => a.order - b.order);
+    const allInSource = tasks.filter(t => t.status === sourceStatus).sort((a, b) => a.order - b.order);
 
-    // Build the new dest order (optimistic)
-    const srcCopy  = sourceTasks.filter(t => t.id !== taskId);
-    const destCopy = [...destTasks];
-    destCopy.splice(result.destination.index, 0, movedTask);
+    let destUpdates: { id: number; status: string; order: number }[];
+    let srcUpdates:  { id: number; status: string; order: number }[];
 
-    const destUpdates = destCopy.map((t, i) => ({ id: t.id, status: destStatus, order: i }));
-    const srcUpdates  = srcCopy.map((t, i)  => ({ id: t.id, status: sourceStatus, order: i }));
+    if (sourceStatus === destStatus) {
+      // Same-column reorder: remove from old index, insert at new index
+      const reordered = [...allInSource];
+      const [moved] = reordered.splice(result.source.index, 1);
+      reordered.splice(result.destination.index, 0, moved);
+      destUpdates = reordered.map((t, i) => ({ id: t.id, status: sourceStatus, order: i }));
+      srcUpdates = [];
+    } else {
+      // Cross-column move
+      const allInDest = tasks.filter(t => t.status === destStatus).sort((a, b) => a.order - b.order);
+      const srcCopy  = allInSource.filter(t => t.id !== taskId);
+      const destCopy = [...allInDest];
+      destCopy.splice(result.destination.index, 0, movedTask);
+      destUpdates = destCopy.map((t, i) => ({ id: t.id, status: destStatus, order: i }));
+      srcUpdates  = srcCopy.map((t, i)  => ({ id: t.id, status: sourceStatus, order: i }));
+    }
 
-    // Helper: write a set of updates to DB
+    // Helper: write updates to DB
     const commitUpdates = async (rows: { id: number; status: string; order: number }[], extraForMoved?: Record<string, any>) => {
       await db.transaction('rw', db.tasks, async () => {
         for (const row of rows) {
@@ -102,7 +114,7 @@ export function Board() {
       });
     };
 
-    // Helper: revert — write the moved task back to its original position
+    // Helper: revert the moved task back to its original position
     const revert = async () => {
       await db.tasks.update(taskId, {
         status: sourceStatus,
@@ -114,6 +126,7 @@ export function Board() {
     // Check: dev task moved to completed with incomplete subtasks
     const hasIncomplete =
       destStatus === 'completed' &&
+      sourceStatus !== 'completed' &&
       movedTask.type === 'dev' &&
       movedTask.subTasks &&
       movedTask.subTasks.length > 0 &&
@@ -121,7 +134,6 @@ export function Board() {
 
     if (hasIncomplete) {
       const incompleteCount = movedTask.subTasks!.filter(s => !s.done).length;
-      // Optimistically write the move first so the card appears in the dest column
       await commitUpdates([...destUpdates, ...srcUpdates]);
 
       confirm({
