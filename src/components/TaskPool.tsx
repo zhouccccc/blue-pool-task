@@ -192,6 +192,16 @@ export function TaskPool() {
         {/* Dashboard Grid View */}
         <div className="flex-1 overflow-y-auto pb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-0.5">
+             {/* Add Button Card — always first */}
+             <Dropdown menu={creationMenuProps} trigger={['click']} placement="bottomCenter">
+               <div className="bg-white/50 border-2 border-dashed border-slate-300 rounded-2xl min-h-[160px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-white group transition-all duration-200">
+                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center mb-3 transition-colors">
+                    <Plus size={24} />
+                 </div>
+                 <span className="font-bold text-sm text-slate-500 group-hover:text-blue-600 transition-colors">创建池任务</span>
+               </div>
+             </Dropdown>
+
              {/* Task Cards */}
              {filteredTasks.map(task => {
                const isSelected = selectedKeys.includes(task.id);
@@ -290,7 +300,11 @@ export function TaskPool() {
                          {task.createdAt ? dayjs(task.createdAt).format('MM/DD HH:mm:ss') : '-'}
                        </span>
 
-                       {task.image && <ImageIcon className="w-3 h-3 text-sky-500 flex-shrink-0" />}
+                       {(() => {
+                         const allImages = [...(task.images || []), ...(task.image && !(task.images?.includes(task.image)) ? [task.image] : [])];
+                         if (allImages.length === 0) return null;
+                         return <ImageIcon className="w-3 h-3 text-sky-500 shrink-0" title={`附图 ×${allImages.length}`} />;
+                       })()}
                      </div>
 
                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
@@ -366,14 +380,7 @@ export function TaskPool() {
                              const updated = task.subTasks!.map(s =>
                                s.id === st.id ? { ...s, done: !s.done } : s
                              );
-                             const allDone = updated.every(s => s.done);
-                             const patch: any = { subTasks: updated, updatedAt: Date.now() };
-                             // Auto-move to completed when all subtasks are done
-                             if (allDone && task.status !== 'completed') {
-                               patch.status = 'completed';
-                               patch.isDemoable = false;
-                             }
-                             await db.tasks.update(task.id, patch);
+                             await db.tasks.update(task.id, { subTasks: updated, updatedAt: Date.now() });
                            }}
                          >
                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
@@ -397,16 +404,6 @@ export function TaskPool() {
                  </div>
                )
              })}
-
-             {/* The Add Button Card - Moved to end */}
-             <Dropdown menu={creationMenuProps} trigger={['click']} placement="bottomCenter">
-               <div className="bg-white/50 border-2 border-dashed border-slate-300 rounded-2xl min-h-[160px] flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-white group transition-all duration-200">
-                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center mb-3 transition-colors">
-                    <Plus size={24} />
-                 </div>
-                 <span className="font-bold text-sm text-slate-500 group-hover:text-blue-600 transition-colors">创建池任务</span>
-               </div>
-             </Dropdown>
           </div>
 
           {tasks.length === 0 && (

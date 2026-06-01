@@ -27,16 +27,17 @@ export interface Task {
   moduleId?: number;
   description: string;
   source: string;
-  image?: string; // Base64 string
+  image?: string;    // Legacy single image (kept for backward compat)
+  images?: string[]; // Multiple images (Base64)
   week?: string; 
   status: string;
   order: number;
   isPostponed?: boolean;
-  isDemoable?: boolean; // Marked as demo-ready (only when status qualifies)
-  isUrgent?: boolean;   // Priority: urgent tasks are surfaced first
+  isDemoable?: boolean;
+  isUrgent?: boolean;
   dependentName?: string;
   dependedName?: string;
-  subTasks?: SubTask[]; // Only applicable for 'dev' type tasks
+  subTasks?: SubTask[];
   createdAt: number;
   updatedAt: number;
 }
@@ -83,6 +84,20 @@ db.version(7).stores({
   modules: '++id, name, order, createdAt',
   members: '++id, name, createdAt',
   tasks: '++id, type, week, moduleId, status, order, createdAt',
+});
+
+// Version 8: add images[] field; migrate legacy image string to images array
+db.version(8).stores({
+  modules: '++id, name, order, createdAt',
+  members: '++id, name, createdAt',
+  tasks: '++id, type, week, moduleId, status, order, createdAt',
+}).upgrade(async tx => {
+  const tasks = await tx.table('tasks').toArray();
+  for (const t of tasks) {
+    if (t.image && !t.images) {
+      await tx.table('tasks').update(t.id, { images: [t.image] });
+    }
+  }
 });
 
 export default db;

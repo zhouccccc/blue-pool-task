@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { STATUS_MAP } from "../constants";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Image as ImageIcon, X, Trash2, GripVertical, Zap } from "lucide-react";
+import { getCurrentWeekStr } from "../lib/utils";
 import { WeekPicker } from "./ui/WeekPicker";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
@@ -22,7 +23,6 @@ interface TaskModalProps {
 export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: TaskModalProps) {
   const [description, setDescription] = React.useState("");
   const [source, setSource] = React.useState("");
-  const [image, setImage] = React.useState("");
   const [moduleId, setModuleId] = React.useState("");
   const [week, setWeek] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -31,6 +31,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [subTasks, setSubTasks] = React.useState<SubTask[]>([]);
   const [newSubTaskTitle, setNewSubTaskTitle] = React.useState("");
   const [isUrgent, setIsUrgent] = React.useState(false);
+  const [images, setImages] = React.useState<string[]>([]);
 
   const modules = useLiveQuery(async () => {
     const res = await db.modules.toArray();
@@ -49,7 +50,10 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       if (task) {
         setDescription(task.description);
         setSource(task.source);
-        setImage(task.image || "");
+        // Merge legacy image + images array
+        const merged = [...(task.images || [])];
+        if (task.image && !merged.includes(task.image)) merged.unshift(task.image);
+        setImages(merged);
         setModuleId(task.moduleId ? String(task.moduleId) : "");
         const taskWeekStr = task.week ? String(task.week) : "";
         setWeek(taskWeekStr.includes('W') ? taskWeekStr : "");
@@ -61,9 +65,10 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       } else {
         setDescription("");
         setSource("");
-        setImage("");
+        setImages([]);
         setModuleId("");
-        setWeek(defaultWeek || "");
+        // Default to current week for non-pool context; pool tasks don't need a week
+        setWeek(defaultWeek || (isPool ? "" : getCurrentWeekStr()));
         setStatus(STATUS_MAP[type][0].id);
         setDependentName("");
         setDependedName("");
@@ -87,7 +92,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
           if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-              setImage(reader.result as string);
+              setImages(prev => [...prev, reader.result as string]);
             };
             reader.readAsDataURL(file);
           }
@@ -136,14 +141,16 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result as string);
+        setImages(prev => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
-    }
+    });
+    // Reset input so same file can be re-selected
+    e.target.value = "";
   };
 
   const handleSave = async () => {
@@ -177,7 +184,8 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       type,
       description,
       source,
-      image,
+      images: images.length > 0 ? images : undefined,
+      image: undefined, // clear legacy field
       status,
       isUrgent,
       updatedAt: Date.now()
@@ -337,13 +345,15 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
               options={modules.map(m => ({ value: String(m.id), label: m.name }))}
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">自然周 {!isPool && <span className="text-red-500">*</span>}</label>
-            <WeekPicker 
-              value={week} 
-              onChange={setWeek} 
-            />
-          </div>
+          {!isPool && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">自然周 <span className="text-red-500">*</span></label>
+              <WeekPicker 
+                value={week} 
+                onChange={setWeek} 
+              />
+            </div>
+          )}
         </div>
 
         {/* SubTasks — only for dev type */}
@@ -417,28 +427,42 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         <div className="space-y-1.5 pt-2">
           <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
             附件图片
-            <span className="text-xs text-slate-400 font-normal">(Base64存储)</span>
+            <span className="text-xs text-slate-400 font-normal">(Base64存储，支持多张)</span>
           </label>
-          {image ? (
-            <div className="relative rounded-lg overflow-hidden border border-slate-200 group w-full h-40 bg-slate-50">
-              <img src={image} alt="Preview" className="w-full h-full object-contain" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Button variant="danger" size="sm" onClick={() => setImage("")}>移除图片</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="relative border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-lg p-6 flex flex-col items-center justify-center text-slate-500 bg-slate-50 transition-colors cursor-pointer text-center">
-              <ImageIcon className="w-8 h-8 mb-2 text-slate-400" />
-              <span className="text-sm">点击选择图片或拖拽到此处</span>
-              <span className="text-xs text-slate-400 mt-1">也可以直接使用 Ctrl+V 粘贴图片</span>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+
+          {/* Existing images grid */}
+          {images.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {images.map((src, idx) => (
+                <div key={idx} className="relative rounded-lg overflow-hidden border border-slate-200 group h-32 bg-slate-50">
+                  <img src={src} alt={`附图 ${idx + 1}`} className="w-full h-full object-contain" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
+                    >
+                      移除
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
+
+          {/* Upload area */}
+          <div className="relative border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-slate-50 transition-colors cursor-pointer text-center">
+            <ImageIcon className="w-6 h-6 mb-1.5 text-slate-400" />
+            <span className="text-sm">点击选择图片或拖拽到此处</span>
+            <span className="text-xs text-slate-400 mt-0.5">支持多选，也可 Ctrl+V 粘贴</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </div>
         </div>
       </div>
     </Modal>

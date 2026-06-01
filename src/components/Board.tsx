@@ -62,18 +62,17 @@ export function Board() {
     if (sourceStatus === destStatus && result.source.index === result.destination.index) return;
 
     // ── Status transition guard ──────────────────────────────────────────────
-    // Allowed forward transitions only. No going back to earlier stages.
+    // Same-column reorder is always allowed. Cross-column only allows forward.
     const ALLOWED: Record<string, string[]> = {
       new:         ['in_progress'],
       in_progress: ['completed'],
       completed:   ['deployed'],
-      deployed:    [],           // terminal — no further moves
+      deployed:    [],
     };
-    if (!(ALLOWED[sourceStatus] ?? []).includes(destStatus)) {
+    if (sourceStatus !== destStatus && !(ALLOWED[sourceStatus] ?? []).includes(destStatus)) {
       message.warning('不支持该状态流转');
       return;
     }
-    // ────────────────────────────────────────────────────────────────────────
 
     const movedTask = tasks.find(t => t.id === taskId);
     if (!movedTask) return;
@@ -442,16 +441,20 @@ export function Board() {
                                   
 
 
-                                  {task.image && (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); setPreviewImage(task.image || null); }}
-                                      className="flex items-center gap-0.5 px-1.5 py-0.5 bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-100/50 rounded-[4px] transition-colors cursor-pointer"
-                                      title="查看附图"
-                                    >
-                                      <ImageIcon className="w-2.5 h-2.5" />
-                                      <span className="text-[9px] font-bold leading-none">附图</span>
-                                    </button>
-                                  )}
+                                  {(() => {
+                                    const allImages = [...(task.images || []), ...(task.image && !(task.images?.includes(task.image)) ? [task.image] : [])];
+                                    if (allImages.length === 0) return null;
+                                    return (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); setPreviewImage(allImages[0]); }}
+                                        className="flex items-center gap-0.5 px-1.5 py-0.5 bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-100/50 rounded-[4px] transition-colors cursor-pointer"
+                                        title="查看附图"
+                                      >
+                                        <ImageIcon className="w-2.5 h-2.5" />
+                                        <span className="text-[9px] font-bold leading-none">附图{allImages.length > 1 ? ` ×${allImages.length}` : ''}</span>
+                                      </button>
+                                    );
+                                  })()}
 
                                   {/* SubTask list icon */}
                                   {task.type === 'dev' && task.subTasks && task.subTasks.length > 0 && (
@@ -489,14 +492,7 @@ export function Board() {
                                         const updated = task.subTasks!.map(s =>
                                           s.id === st.id ? { ...s, done: !s.done } : s
                                         );
-                                        const allDone = updated.every(s => s.done);
-                                        const patch: any = { subTasks: updated, updatedAt: Date.now() };
-                                        // Auto-move to completed when all subtasks are done
-                                        if (allDone && task.status !== 'completed') {
-                                          patch.status = 'completed';
-                                          patch.isDemoable = false;
-                                        }
-                                        await db.tasks.update(task.id, patch);
+                                        await db.tasks.update(task.id, { subTasks: updated, updatedAt: Date.now() });
                                       }}
                                     >
                                       <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
@@ -626,14 +622,22 @@ export function Board() {
                 </InfoRow>
               </div>
 
-              {viewingTask.image && (
-                <div className="pt-2 space-y-2">
-                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">任务附图</div>
-                   <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-                      <Image src={viewingTask.image} className="w-full h-auto object-contain max-h-[320px]" />
-                   </div>
-                </div>
-              )}
+              {(() => {
+                const allImages = [...(viewingTask.images || []), ...(viewingTask.image && !(viewingTask.images?.includes(viewingTask.image)) ? [viewingTask.image] : [])];
+                if (allImages.length === 0) return null;
+                return (
+                  <div className="pt-2 space-y-2">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">任务附图 ({allImages.length})</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allImages.map((src, i) => (
+                        <div key={i} className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                          <Image src={src} className="w-full h-auto object-contain max-h-[200px]" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
