@@ -61,20 +61,6 @@ export function Board() {
     
     if (sourceStatus === destStatus && result.source.index === result.destination.index) return;
 
-    // ── Status transition guard ──────────────────────────────────────────────
-    // Same-column reorder is always allowed.
-    // Cross-column: forward only, plus completed → in_progress is allowed.
-    const ALLOWED: Record<string, string[]> = {
-      new:         ['in_progress'],
-      in_progress: ['completed'],
-      completed:   ['deployed', 'in_progress'],
-      deployed:    [],
-    };
-    if (sourceStatus !== destStatus && !(ALLOWED[sourceStatus] ?? []).includes(destStatus)) {
-      message.warning('不支持该状态流转');
-      return;
-    }
-
     const movedTask = tasks.find(t => t.id === taskId);
     if (!movedTask) return;
 
