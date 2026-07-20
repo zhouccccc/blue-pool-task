@@ -399,6 +399,13 @@ export function Board() {
                                 {task.description}
                               </p>
 
+                              {/* Progress note — display below task name */}
+                              {task.progressNote && (
+                                <p className="text-[11px] text-slate-500 leading-relaxed break-words mt-1 italic">
+                                  {task.progressNote}
+                                </p>
+                              )}
+
                               {/* SubTask progress — only for dev tasks with subtasks */}
                               {task.type === 'dev' && task.subTasks && task.subTasks.length > 0 && (() => {
                                 const total = task.subTasks.length;
