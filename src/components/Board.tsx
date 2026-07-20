@@ -568,6 +568,14 @@ export function Board() {
                 <InfoRow label="任务描述" highlight>
                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-slate-800 py-1">{viewingTask.description}</div>
                 </InfoRow>
+
+                {viewingTask.progressNote && (
+                  <InfoRow label="进度说明">
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      {viewingTask.progressNote}
+                    </div>
+                  </InfoRow>
+                )}
                 
                 <InfoRow label="归属自然周">
                   {viewingTask.week ? formatWeekRange(viewingTask.week) : '-'}

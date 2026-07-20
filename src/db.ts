@@ -29,6 +29,7 @@ export interface Task {
   source: string;
   image?: string;    // Legacy single image (kept for backward compat)
   images?: string[]; // Multiple images (Base64)
+  progressNote?: string; // Progress explanation for non-pool tasks
   week?: string; 
   status: string;
   order: number;
@@ -98,6 +99,13 @@ db.version(8).stores({
       await tx.table('tasks').update(t.id, { images: [t.image] });
     }
   }
+});
+
+// Version 9: add progressNote field (no migration needed, stored as string)
+db.version(9).stores({
+  modules: '++id, name, order, createdAt',
+  members: '++id, name, createdAt',
+  tasks: '++id, type, week, moduleId, status, order, createdAt',
 });
 
 export default db;

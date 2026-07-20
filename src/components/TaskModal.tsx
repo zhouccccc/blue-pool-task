@@ -32,6 +32,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
   const [newSubTaskTitle, setNewSubTaskTitle] = React.useState("");
   const [isUrgent, setIsUrgent] = React.useState(false);
   const [images, setImages] = React.useState<string[]>([]);
+  const [progressNote, setProgressNote] = React.useState("");
 
   const modules = useLiveQuery(async () => {
     const res = await db.modules.toArray();
@@ -62,6 +63,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setDependedName(task.dependedName || "");
         setSubTasks(task.subTasks || []);
         setIsUrgent(!!task.isUrgent);
+        setProgressNote(task.progressNote || "");
       } else {
         setDescription("");
         setSource("");
@@ -74,6 +76,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
         setDependedName("");
         setSubTasks([]);
         setIsUrgent(false);
+        setProgressNote("");
       }
       setNewSubTaskTitle("");
     }
@@ -186,6 +189,7 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
       source,
       images: images.length > 0 ? images : undefined,
       image: undefined, // clear legacy field
+      progressNote: !isPool ? (progressNote || undefined) : undefined,
       status,
       isUrgent,
       updatedAt: Date.now()
@@ -288,6 +292,18 @@ export function TaskModal({ isOpen, onClose, type, task, defaultWeek, isPool }: 
             className="min-h-[100px]"
           />
         </div>
+
+        {!isPool && (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">进度说明</label>
+            <Textarea 
+              value={progressNote} 
+              onChange={(e) => setProgressNote(e.target.value)}
+              className="min-h-16 resize-none"
+              placeholder="记录当前进度、遇到的问题、后续计划等"
+            />
+          </div>
+        )}
 
         {type !== 'dep' && (
           <div className="space-y-1.5">
