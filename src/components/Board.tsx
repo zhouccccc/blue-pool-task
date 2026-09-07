@@ -185,6 +185,11 @@ export function Board() {
   const handlePostpone = async (task: Task, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!task.week) return;
+    // Only new and in_progress tasks can be postponed
+    if (task.status !== 'new' && task.status !== 'in_progress') {
+      message.warning("只有新建或开发中的任务才能顺延");
+      return;
+    }
     const nextWeek = getNextWeekStr(task.week);
     confirm({
       title: '顺延到下周',
@@ -281,7 +286,7 @@ export function Board() {
                         const isDemoable = !!task.isDemoable;
                         const isUrgent = !!task.isUrgent;
                         const canReturnToPool = task.status === 'new';
-                        const canPostpone = !!task.week;
+                        const canPostpone = task.week && (task.status === 'new' || task.status === 'in_progress');
                         const canEdit = task.status !== 'completed' && task.status !== 'deployed';
                         return (
                           <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
@@ -535,7 +540,7 @@ export function Board() {
         title="任务详情"
         footer={
           <div className="flex justify-between w-full items-center">
-            {viewingTask?.week ? (
+            {viewingTask?.week && (viewingTask.status === 'new' || viewingTask.status === 'in_progress') ? (
               <Button 
                 variant="outline" 
                 className="text-amber-600 border-amber-200 hover:bg-amber-50 font-semibold"
